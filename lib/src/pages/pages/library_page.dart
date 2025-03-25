@@ -1,0 +1,286 @@
+import 'package:flutter/material.dart';
+import 'package:spotired/src/controllers/playlist_controller.dart';
+import 'package:spotired/src/pages/data/constants.dart';
+import 'package:spotired/src/pages/pages/library/create_playlist_page.dart';
+import 'package:spotired/src/shared/widgets/modal_bottom_menu.dart';
+
+class LibraryPage extends StatefulWidget {
+  const LibraryPage({super.key});
+
+  @override
+  State<LibraryPage> createState() => _LibraryPageState();
+}
+
+class _LibraryPageState extends State<LibraryPage> {
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color.fromARGB(255, 18, 18, 18),
+      body: ListenableBuilder(
+        listenable: playlistController,
+        builder: (BuildContext context, Widget? child) {
+          return SafeArea(
+            child: Column(
+              children: [
+
+                _header(),
+
+                playlistController.playlists.isEmpty
+                  ? _createPlaylistBody()
+                  : _showPlaylistsBody(),
+
+              ],
+            )
+          );
+        }
+      ),
+    );
+  }
+
+  Widget _header() {
+    return Container(
+      height: 150,
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        color: Color.fromARGB(255, 18, 18, 18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black,
+            blurRadius: 3,
+            spreadRadius: -3,
+            offset: Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.only(left: 20, top: 50, right: 20, bottom: 10),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+
+                    const SizedBox( width: 5 ),
+        
+                    Container(
+                      width: 33,
+                      height: 33,
+                      alignment: Alignment.center,
+                      decoration: const BoxDecoration(
+                        color: Color.fromRGBO(247, 114, 161, 1),
+                        shape: BoxShape.circle,
+                      ),
+                      padding: const EdgeInsets.only(left: 2, top: 1),
+                      child: const Text(
+                        'D',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ),
+        
+                    const SizedBox( width: 15 ),
+        
+                    // TOP
+                    const Text(
+                      'Tu biblioteca',
+                      style: TextStyle(
+                        color: Constants.tertiaryColor,
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+        
+                GestureDetector(
+                  onTap: _openPage,
+                  child: const Icon(
+                    Icons.add,
+                    color: Constants.tertiaryColor,
+                    size: 40,
+                  ),
+                )
+              ],
+            ),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.only(left: 10, right: 10, top: 8, bottom: 8),
+                  decoration: const BoxDecoration(
+                    color: Color.fromRGBO(42, 42, 42, 1),
+                    borderRadius: BorderRadius.all(Radius.circular(20))
+                  ),
+                  child: const Text(
+                    'Listas',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Constants.tertiaryColor,
+                    ),
+                  ),
+                )
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _createPlaylistBody() {
+    return Expanded(
+      child: SizedBox(
+        height: MediaQuery.of(context).size.height,
+        child: const Center(
+          child: Text(
+            'Vamos a empezar a crear tu lista de reproducción',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Constants.tertiaryColor,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _showPlaylistsBody() {
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: ListView.builder(
+          padding: const EdgeInsets.only(bottom: 100),
+          itemCount: playlistController.playlists.length,
+          itemBuilder: (context, playlistIndex) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 20),
+              child: _playlistRow(playlistIndex),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _playlistRow(int playlistIndex) {
+    double scale = 1;
+
+    void pressingSlale(setState) {
+      setState(() { scale = 0.95; });
+    }
+
+    void normalScale(setState) {
+      setState(() { scale = 1; });
+    }
+
+    return StatefulBuilder(
+      builder: (context, setState) {
+        return Listener(
+          onPointerUp: (event) => normalScale(setState),
+          child: GestureDetector(
+            // onLongPressDown: (details) {
+            //   pressingSlale(setState);
+            // },
+            onTapDown: (details) {
+              pressingSlale(setState);
+            },
+            onTapUp: (details) {
+              normalScale(setState);
+            },
+            onLongPress: () {
+              normalScale(setState);
+              _showPlaylistOptions(playlistIndex);
+            },
+            onTap: () {
+              print('-- tapea');
+            },
+            child: AnimatedScale(
+              duration: const Duration(milliseconds: 100),
+              scale: scale,
+              child: Container(
+                height: 70,
+                color: Colors.transparent,
+                child: Row(
+                  children: [
+                    Container(
+                      width: 100,
+                      height: double.infinity,
+                      color: const Color.fromRGBO(35, 35, 35, 1),
+                      child: const Center(
+                        child: Icon(
+                          Icons.folder_outlined,
+                          size: 35,
+                          color: Color.fromRGBO(125, 125, 125, 1),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox( width: 15 ),
+
+                    Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // PLAYLIST TITLE
+                        Text(
+                          playlistController.playlists[playlistIndex].name,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Constants.tertiaryColor,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+
+                        const SizedBox( height: 2 ),
+
+                        // SIZE
+                        Text(
+                          'Lista • ${playlistController.playlists[playlistIndex].size} canciones',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Constants.tertiaryColor,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    )
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      }
+    );
+  }
+
+  void _openPage() {
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => CreatePlaylistPage(),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(
+            opacity: animation,
+            child: child,
+          );
+        },
+        transitionDuration: const Duration(milliseconds: 100),
+        reverseTransitionDuration: const Duration(milliseconds: 100),
+      ),
+    );
+  }
+
+  void _showPlaylistOptions(int playlistIndex) {
+    ModalBottomMenu().playlistMenu(context, playlistIndex);
+  }
+}

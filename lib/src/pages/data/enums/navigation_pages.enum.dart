@@ -1,0 +1,4 @@
+enum NavigationPagesEnum {
+  search,
+  library,
+}
