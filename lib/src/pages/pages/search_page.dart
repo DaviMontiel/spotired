@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:spotired/src/controllers/playlist_controller.dart';
+import 'package:spotired/src/controllers/video_controller.dart';
+import 'package:spotired/src/data/models/video/video_song.dart';
 import 'package:spotired/src/pages/data/constants.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
 class SearchPage extends StatefulWidget {
   @override
@@ -10,7 +14,7 @@ class SearchPage extends StatefulWidget {
 class _SearchPageState extends State<SearchPage> {
   late final WebViewController _controller;
   bool _isShowingVideo = false;
-  String _videoUrl = '';
+  Video? _video = null;
 
   @override
   void initState() {
@@ -30,12 +34,11 @@ class _SearchPageState extends State<SearchPage> {
           onProgress: (int progress) {
             debugPrint('WebView is loading (progress : $progress%)');
           },
-          onUrlChange: (change) {
+          onUrlChange: (change) async {
             if (change.url!.startsWith('https://m.youtube.com/watch')) {
-              setState(() {
-                _videoUrl = change.url!;
-                _isShowingVideo = true;
-              });
+              _video = await YoutubeExplode().videos.get(change.url!);
+              _isShowingVideo = true;
+              setState(() {});
             } else {
               _isShowingVideo = false;
               setState(() {});
@@ -79,28 +82,17 @@ class _SearchPageState extends State<SearchPage> {
     _controller = controller;
   }
 
-  String getVideoThumbnail(String url) {
-    // Extraer el ID del video de la URL
-    RegExp regExp = RegExp(r'v=([a-zA-Z0-9_-]+)');
-    Match? match = regExp.firstMatch(url);
-
-    if (match != null) {
-      // Si se encuentra un ID, devolver la URL de la miniatura
-      String videoId = match.group(1)!;
-      return 'https://img.youtube.com/vi/$videoId/0.jpg';
-    } else {
-      // Si no se encuentra un ID, retornar una URL de miniatura predeterminada
-      return 'https://img.youtube.com/vi/default_thumbnail.jpg';
-    }
-  }
-
   void _saveVideoToPlaylist() async {
-    // final video = await YoutubeExplode().videos.get(_videoUrl);
-    // playlistController.addVideoToPlaylist('play', {
-    //   'url': _videoUrl,
-    //   'title': video.title,
-    //   'thumbnail': getVideoThumbnail(_videoUrl),
-    // });
+    VideoSong video = VideoSong(
+      url: _video!.url.split('v=')[1],
+      title: _video!.title,
+      author: _video!.author,
+      thumbnail: videoController.getVideoThumbnail(_video!.url).split('vi/')[1],
+    );
+
+    // ADD SONG
+    playlistController.addVideoToPlaylist(0, video);
+
     setState(() {
       _isShowingVideo = false;
     });

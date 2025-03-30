@@ -1,5 +1,6 @@
 enum SharePreferenceValues {
-  playlists('playlists');
+  playlists('playlists'),
+  videos('videos');
 
 
   final String value;

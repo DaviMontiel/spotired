@@ -1,33 +1,45 @@
 import 'package:flutter/material.dart';
 import 'package:spotired/src/controllers/playlist_controller.dart';
+import 'package:spotired/src/data/models/playlist/playlist.dart';
 import 'package:spotired/src/pages/data/constants.dart';
 
-
 class CreatePlaylistPage extends StatefulWidget {
-  const CreatePlaylistPage({super.key});
+  final int? playlistIndex;
+
+  const CreatePlaylistPage({
+    super.key,
+    this.playlistIndex,
+  });
 
   @override
   State<CreatePlaylistPage> createState() => _CreatePlaylistPageState();
 }
 
 class _CreatePlaylistPageState extends State<CreatePlaylistPage> {
+  Playlist? _playlistToEdit;
 
   final _focusNode = FocusNode();
   final _tfController = TextEditingController();
 
-  bool _isCreatingPlaylist = false;
-
+  bool _isEditingPlaylist = false;
 
   @override
   void initState() {
-    _tfController.text = 'Mi lista n.º 25';
+    // SET PLAYLIST TEXT
+    if (widget.playlistIndex != null) {
+      _playlistToEdit = playlistController.playlists[widget.playlistIndex!];
+      _tfController.text = _playlistToEdit!.name;
+    } else {
+      _tfController.text = 'Mi lista n.º 25';
+    }
 
     super.initState();
 
     // SET TF FOCUS WITH SELECTION
     Future.delayed(const Duration(milliseconds: 100), () {
       _focusNode.requestFocus();
-      _tfController.selection = TextSelection(baseOffset: 0, extentOffset: _tfController.text.length);
+      _tfController.selection =
+          TextSelection(baseOffset: 0, extentOffset: _tfController.text.length);
     });
   }
 
@@ -47,9 +59,11 @@ class _CreatePlaylistPageState extends State<CreatePlaylistPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text(
-              "Ponle un título a tu lista",
-              style: TextStyle(
+            Text(
+              _playlistToEdit != null
+                  ? 'Cambiale el título a tu lista'
+                  : 'Ponle un título a tu lista',
+              style: const TextStyle(
                 color: Constants.tertiaryColor,
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
@@ -106,7 +120,7 @@ class _CreatePlaylistPageState extends State<CreatePlaylistPage> {
                 ),
                 const SizedBox(width: 20),
                 ElevatedButton(
-                  onPressed: _createPlaylist,
+                  onPressed: _onClickSaveBtn,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Constants.primaryColor,
                     foregroundColor: Colors.black,
@@ -116,9 +130,9 @@ class _CreatePlaylistPageState extends State<CreatePlaylistPage> {
                       borderRadius: BorderRadius.circular(30),
                     ),
                   ),
-                  child: const Text(
-                    'Crear',
-                    style: TextStyle(
+                  child: Text(
+                    _playlistToEdit != null ? 'Cambiar' : 'Crear',
+                    style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                     ),
@@ -132,14 +146,31 @@ class _CreatePlaylistPageState extends State<CreatePlaylistPage> {
     );
   }
 
-  void _createPlaylist() {
-    if (_isCreatingPlaylist) return;
-    _isCreatingPlaylist = true;
+  void _onClickSaveBtn() {
+    if (_isEditingPlaylist) return;
+    _isEditingPlaylist = true;
 
     // CHECK TITLE
-    String playlistTitle = _tfController.text.trim().replaceAll(RegExp(r'\s+'), ' ');
+    String playlistTitle =
+        _tfController.text.trim().replaceAll(RegExp(r'\s+'), ' ');
     if (playlistTitle.isEmpty) return;
 
+    if (_playlistToEdit == null) {
+      _createPlaylist(playlistTitle);
+    } else {
+      _editPlayList(playlistTitle);
+    }
+  }
+
+  void _editPlayList(String playlistTitle) {
+    // RENAME PLAYLIST
+    playlistController.renamePlaylist(widget.playlistIndex!, playlistTitle);
+
+    // GO BACK
+    Navigator.pop(context);
+  }
+
+  void _createPlaylist(String playlistTitle) {
     // CREATE PLAYLIST
     playlistController.addPlaylist(playlistTitle);
 

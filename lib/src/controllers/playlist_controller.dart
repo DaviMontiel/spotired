@@ -1,8 +1,10 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:spotired/src/controllers/video_controller.dart';
 import 'package:spotired/src/data/models/playlist/playlist.dart';
 import 'package:spotired/src/data/models/shared_preferences/enums/share_preference_values.enum.dart';
+import 'package:spotired/src/data/models/video/video_song.dart';
 import 'package:spotired/src/data/services/data_service.dart';
 
 final playlistController = PlaylistController();
@@ -23,10 +25,8 @@ class PlaylistController with ChangeNotifier {
     // Convertir los mapas en objetos Playlist
     List<Playlist> playlists = decodedList.map((item) {
       return Playlist(
-        img: item['img'],
         name: item['name'],
-        size: item['size'],
-        videos: [],
+        videos: List<String>.from(item['videos']),
       );
     }).toList();
 
@@ -34,11 +34,20 @@ class PlaylistController with ChangeNotifier {
   }
 
   Playlist? findPlaylistByName(String name) {
-    for (int f=0; f<playlists.length; f++) {
+    for (int f = 0; f < playlists.length; f++) {
       if (playlists[f].name == name) return _playlists[f];
     }
 
     return null;
+  }
+
+  void renamePlaylist(int index, String newName) async {
+    Playlist playlist = playlists[index];
+
+    playlist.name = newName;
+
+    notifyListeners();
+    savePlaylists();
   }
 
   void addPlaylist(String name) async {
@@ -62,10 +71,20 @@ class PlaylistController with ChangeNotifier {
     savePlaylists();
   }
 
-  void addVideoToPlaylist(String playlistName, Map<String, String> video) {
-    // final playlist = _playlists.firstWhere((pl) => pl.name == playlistName);
-    final playlist = _playlists[0];
-    // playlist.videos.add(video);
+  void addVideoToPlaylist(int playlistIndex, VideoSong video) {
+    // GET PLAYLIST
+    final playlist = _playlists[playlistIndex];
+
+    // FIND VIDEO-SONG
+    VideoSong? existingVideo = videoController.getVideoByUrl(video.url);
+
+    // CREATE VIDEO-SONG
+    if (existingVideo == null) {
+      existingVideo = video;
+      videoController.addVideoSong(video);
+      playlist.videos.add(existingVideo.url);
+    }
+
     notifyListeners();
 
     savePlaylists();

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:spotired/src/controllers/playlist_controller.dart';
 import 'package:spotired/src/pages/data/constants.dart';
+import 'package:spotired/src/pages/pages/library/create_playlist_page.dart';
 
 class ModalBottomMenu {
   
@@ -143,7 +144,19 @@ class ModalBottomMenu {
   }
 
   _changePlaylistName(BuildContext context, int playlistIndex) {
-    playlistController.removePlaylist(playlistIndex);
-    Navigator.pop(context);
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => CreatePlaylistPage(playlistIndex: playlistIndex),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(
+            opacity: animation,
+            child: child,
+          );
+        },
+        transitionDuration: const Duration(milliseconds: 100),
+        reverseTransitionDuration: const Duration(milliseconds: 100),
+      ),
+    );
+    // Navigator.pop(context);
   }
 }

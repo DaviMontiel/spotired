@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:spotired/src/controllers/playlist_controller.dart';
 import 'package:spotired/src/pages/data/constants.dart';
+import 'package:spotired/src/pages/data/providers/navitation_provider.dart';
 import 'package:spotired/src/pages/pages/library/create_playlist_page.dart';
+import 'package:spotired/src/pages/pages/library/playlist_page.dart';
 import 'package:spotired/src/shared/widgets/modal_bottom_menu.dart';
 
 class LibraryPage extends StatefulWidget {
@@ -12,29 +14,23 @@ class LibraryPage extends StatefulWidget {
 }
 
 class _LibraryPageState extends State<LibraryPage> {
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color.fromARGB(255, 18, 18, 18),
       body: ListenableBuilder(
-        listenable: playlistController,
-        builder: (BuildContext context, Widget? child) {
-          return SafeArea(
-            child: Column(
+          listenable: playlistController,
+          builder: (BuildContext context, Widget? child) {
+            return SafeArea(
+                child: Column(
               children: [
-
                 _header(),
-
                 playlistController.playlists.isEmpty
-                  ? _createPlaylistBody()
-                  : _showPlaylistsBody(),
-
+                    ? _createPlaylistBody()
+                    : _showPlaylistsBody(),
               ],
-            )
-          );
-        }
-      ),
+            ));
+          }),
     );
   }
 
@@ -54,7 +50,8 @@ class _LibraryPageState extends State<LibraryPage> {
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.only(left: 20, top: 50, right: 20, bottom: 10),
+        padding:
+            const EdgeInsets.only(left: 20, top: 50, right: 20, bottom: 10),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -64,9 +61,8 @@ class _LibraryPageState extends State<LibraryPage> {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
+                    const SizedBox(width: 5),
 
-                    const SizedBox( width: 5 ),
-        
                     Container(
                       width: 33,
                       height: 33,
@@ -85,9 +81,9 @@ class _LibraryPageState extends State<LibraryPage> {
                         ),
                       ),
                     ),
-        
-                    const SizedBox( width: 15 ),
-        
+
+                    const SizedBox(width: 15),
+
                     // TOP
                     const Text(
                       'Tu biblioteca',
@@ -99,9 +95,8 @@ class _LibraryPageState extends State<LibraryPage> {
                     ),
                   ],
                 ),
-        
                 GestureDetector(
-                  onTap: _openPage,
+                  onTap: _openCreatePlaylistPage,
                   child: const Icon(
                     Icons.add,
                     color: Constants.tertiaryColor,
@@ -113,11 +108,11 @@ class _LibraryPageState extends State<LibraryPage> {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.only(left: 10, right: 10, top: 8, bottom: 8),
+                  padding: const EdgeInsets.only(
+                      left: 10, right: 10, top: 8, bottom: 8),
                   decoration: const BoxDecoration(
-                    color: Color.fromRGBO(42, 42, 42, 1),
-                    borderRadius: BorderRadius.all(Radius.circular(20))
-                  ),
+                      color: Color.fromRGBO(42, 42, 42, 1),
+                      borderRadius: BorderRadius.all(Radius.circular(20))),
                   child: const Text(
                     'Listas',
                     style: TextStyle(
@@ -175,99 +170,100 @@ class _LibraryPageState extends State<LibraryPage> {
     double scale = 1;
 
     void pressingSlale(setState) {
-      setState(() { scale = 0.95; });
+      setState(() {
+        scale = 0.95;
+      });
     }
 
     void normalScale(setState) {
-      setState(() { scale = 1; });
+      setState(() {
+        scale = 1;
+      });
     }
 
-    return StatefulBuilder(
-      builder: (context, setState) {
-        return Listener(
-          onPointerUp: (event) => normalScale(setState),
-          child: GestureDetector(
-            // onLongPressDown: (details) {
-            //   pressingSlale(setState);
-            // },
-            onTapDown: (details) {
-              pressingSlale(setState);
-            },
-            onTapUp: (details) {
-              normalScale(setState);
-            },
-            onLongPress: () {
-              normalScale(setState);
-              _showPlaylistOptions(playlistIndex);
-            },
-            onTap: () {
-              print('-- tapea');
-            },
-            child: AnimatedScale(
-              duration: const Duration(milliseconds: 100),
-              scale: scale,
-              child: Container(
-                height: 70,
-                color: Colors.transparent,
-                child: Row(
-                  children: [
-                    Container(
-                      width: 100,
-                      height: double.infinity,
-                      color: const Color.fromRGBO(35, 35, 35, 1),
-                      child: const Center(
-                        child: Icon(
-                          Icons.folder_outlined,
-                          size: 35,
-                          color: Color.fromRGBO(125, 125, 125, 1),
-                        ),
+    return StatefulBuilder(builder: (context, setState) {
+      return Listener(
+        onPointerUp: (event) => normalScale(setState),
+        child: GestureDetector(
+          onLongPressDown: (details) {
+            pressingSlale(setState);
+          },
+          onTapDown: (details) {
+            pressingSlale(setState);
+          },
+          onTapUp: (details) {
+            normalScale(setState);
+          },
+          onLongPress: () {
+            normalScale(setState);
+            _showPlaylistOptions(playlistIndex);
+          },
+          onTap: () {
+            _openPlaylist(playlistIndex);
+          },
+          child: AnimatedScale(
+            duration: const Duration(milliseconds: 100),
+            scale: scale,
+            child: Container(
+              height: 70,
+              color: Colors.transparent,
+              child: Row(
+                children: [
+                  Container(
+                    width: 100,
+                    height: double.infinity,
+                    color: const Color.fromRGBO(35, 35, 35, 1),
+                    child: const Center(
+                      child: Icon(
+                        Icons.folder_outlined,
+                        size: 35,
+                        color: Color.fromRGBO(125, 125, 125, 1),
                       ),
                     ),
-
-                    const SizedBox( width: 15 ),
-
-                    Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // PLAYLIST TITLE
-                        Text(
-                          playlistController.playlists[playlistIndex].name,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: Constants.tertiaryColor,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
+                  ),
+                  const SizedBox(width: 15),
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // PLAYLIST TITLE
+                      Text(
+                        playlistController.playlists[playlistIndex].name,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Constants.tertiaryColor,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
                         ),
+                      ),
 
-                        const SizedBox( height: 2 ),
+                      const SizedBox(height: 2),
 
-                        // SIZE
-                        Text(
-                          'Lista • ${playlistController.playlists[playlistIndex].size} canciones',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: Constants.tertiaryColor,
-                            fontSize: 14,
-                          ),
+                      // SIZE
+                      Text(
+                        'Lista • ${playlistController.playlists[playlistIndex].videos.length} canciones',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Constants.tertiaryColor,
+                          fontSize: 14,
                         ),
-                      ],
-                    )
-                  ],
-                ),
+                      ),
+                    ],
+                  )
+                ],
               ),
             ),
           ),
-        );
-      }
-    );
+        ),
+      );
+    });
   }
 
-  void _openPage() {
+  void _openCreatePlaylistPage() {
     Navigator.of(context).push(
       PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => CreatePlaylistPage(),
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            const CreatePlaylistPage(),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(
             opacity: animation,
@@ -278,6 +274,11 @@ class _LibraryPageState extends State<LibraryPage> {
         reverseTransitionDuration: const Duration(milliseconds: 100),
       ),
     );
+  }
+
+  void _openPlaylist(int playlistIndex) {
+    navigationProvider.changeCurrentPage(context, PlaylistPage(playlistIndex: playlistIndex));
+    
   }
 
   void _showPlaylistOptions(int playlistIndex) {
