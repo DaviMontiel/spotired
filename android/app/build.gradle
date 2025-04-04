@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.spotired"
+    namespace = "com.david.spotired"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -19,8 +19,8 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.spotired"
-        minSdk = flutter.minSdkVersion
+        applicationId = "com.david.spotired"
+        minSdk = 21
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

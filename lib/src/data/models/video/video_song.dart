@@ -3,12 +3,14 @@ class VideoSong {
   String title;
   String author;
   String thumbnail;
+  int duration;
 
   VideoSong({
     required this.url,
     required this.title,
     required this.author,
     required this.thumbnail,
+    required this.duration,
   });
 
   toMap() {
@@ -17,15 +19,17 @@ class VideoSong {
       'title': title,
       'author': author,
       'thumbnail': thumbnail,
+      'duration': duration,
     };
   }
 
   static VideoSong fromMap(Map<String, dynamic> map) {
     return VideoSong(
-      url: map['url'] as String,
-      title: map['title'] as String,
-      author: map['author'] as String,
-      thumbnail: map['thumbnail'] as String,
+      url: map['url'],
+      title: map['title'],
+      author: map['author'],
+      thumbnail: map['thumbnail'],
+      duration: map['duration'],
     );
   }
 }

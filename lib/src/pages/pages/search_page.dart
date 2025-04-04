@@ -87,7 +87,8 @@ class _SearchPageState extends State<SearchPage> {
       url: _video!.url.split('v=')[1],
       title: _video!.title,
       author: _video!.author,
-      thumbnail: videoController.getVideoThumbnail(_video!.url).split('vi/')[1],
+      thumbnail: videoController.getVideoThumbnailFromYTUrl(_video!.url).split('vi/')[1],
+      duration: _video!.duration!.inSeconds,
     );
 
     // ADD SONG

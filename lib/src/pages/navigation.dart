@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:spotired/src/controllers/video_controller.dart';
+import 'package:spotired/src/data/models/video/enums/video_song_status.dart';
 import 'package:spotired/src/data/models/video/video_song.dart';
+import 'package:spotired/src/pages/data/constants.dart';
 import 'package:spotired/src/pages/data/enums/navigation_pages.enum.dart';
 import 'package:spotired/src/pages/data/providers/navitation_provider.dart';
 
@@ -56,7 +58,7 @@ class _NavigationState extends State<Navigation> {
                           ),
                         ),
                       ),
-                  
+
                       ValueListenableBuilder<VideoSong?>(
                         valueListenable: videoController.currentVideo,
                         builder: (context, value, child) {
@@ -84,68 +86,139 @@ class _NavigationState extends State<Navigation> {
                                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                       children: [
                                         // LEFT
-                                        Row(
-                                          children: [
-                                            // SONG IMG
-                                            Container(
-                                              width: 42,
-                                              height: 42,
-                                              decoration: const BoxDecoration(
-                                                borderRadius:
-                                                    BorderRadius.all(Radius.circular(5)),
-                                                color: Color.fromRGBO(3, 34, 25, 1),
-                                              ),
-                                            ),
-                                            
-                                            const SizedBox(width: 13),
-                                            
-                                            // SONG TITLE
-                                            Column(
-                                              mainAxisAlignment: MainAxisAlignment.center,
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  value == null
-                                                    ? ''
-                                                    : value.title,
-                                                  style: const TextStyle(
-                                                    fontSize: 13,
-                                                    fontWeight: FontWeight.bold,
-                                                    color: Colors.white,
-                                                  ),
-                                                ),
-                                                const Text(
-                                                  'Omar Montes',
-                                                  style: TextStyle(
-                                                    fontSize: 13,
-                                                    color: Color.fromRGBO(
-                                                        255, 255, 255, 0.7),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ],
-                                        ),
-                                            
-                                        // RIGHT
-                                        const Padding(
-                                          padding: EdgeInsets.only(right: 5),
+                                        Expanded(
                                           child: Row(
                                             children: [
-                                              Icon(
-                                                Icons.play_arrow,
-                                                color: Colors.white,
-                                                size: 35,
+                                              // SONG IMG
+                                              Container(
+                                                width: 42,
+                                                height: 42,
+                                                decoration: const BoxDecoration(
+                                                  borderRadius: BorderRadius.all(Radius.circular(5)),
+                                                  color: Color.fromRGBO(35, 35, 35, 1),
+                                                ),
+                                                child: value == null
+                                                  ? const SizedBox()
+                                                  : ClipRRect(
+                                                    borderRadius: BorderRadius.circular(5),
+                                                    child: Stack(
+                                                      children: [
+                                                        Positioned(
+                                                          top: -8,
+                                                          bottom: -8,
+                                                          child: Image.network(videoController.construyeVideoThumbnail(value.thumbnail)),
+                                                        )
+                                                      ],
+                                                    ),
+                                                  ),
+                                              ),
+
+                                              const SizedBox(width: 13),
+
+                                              // SONG TITLE
+                                              Expanded(
+                                                child: Padding(
+                                                  padding: const EdgeInsets.only(right: 10),
+                                                  child: Column(
+                                                    mainAxisAlignment: MainAxisAlignment.center,
+                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                    children: [
+                                                      Text(
+                                                        value == null
+                                                          ? ''
+                                                          : value.title,
+                                                        style: const TextStyle(
+                                                          fontSize: 13,
+                                                          fontWeight: FontWeight.bold,
+                                                          color: Colors.white,
+                                                        ),
+                                                        overflow: TextOverflow.ellipsis,
+                                                        maxLines: 1,
+                                                      ),
+                                                      Text(
+                                                        value == null
+                                                          ? ''
+                                                          : value.author,
+                                                        style: const TextStyle(
+                                                          fontSize: 13,
+                                                          color: Color.fromRGBO(255, 255, 255, 0.7),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+
+                                        // RIGHT
+                                        Padding(
+                                          padding: const EdgeInsets.only(right: 5),
+                                          child: Row(
+                                            children: [
+                                              ValueListenableBuilder<VideoSongStatus>(
+                                                valueListenable: videoController.videoSongStatus,
+                                                builder: (context, videoSongStatus, child) {
+                                                  // LOADING ICON
+                                                  if (videoSongStatus == VideoSongStatus.loading) {
+                                                    return const SizedBox(
+                                                      width: 35,
+                                                      child: CircularProgressIndicator(
+                                                        color: Colors.white,
+                                                      ),
+                                                    );
+                                                  }
+
+                                                  return GestureDetector(
+                                                    onTap: _togglePlayPause,
+                                                    child: Icon(
+                                                      videoSongStatus == VideoSongStatus.playing
+                                                        ? Icons.pause
+                                                        : Icons.play_arrow,
+                                                      color: Colors.white,
+                                                      size: 35,
+                                                    ),
+                                                  );
+                                                }
                                               ),
                                             ],
                                           ),
                                         ),
                                       ],
                                     ),
-                                    Container(
-                                      color: Colors.white.withOpacity(0.2),
-                                      height: 2,
+
+                                    // SONG PROGRESS
+                                    Stack(
+                                      children: [
+                                        // BG
+                                        Container(
+                                          color: Colors.white.withOpacity(0.2),
+                                          height: 2,
+                                          width: double.infinity,
+                                        ),
+
+                                        // PROGRESS
+                                        ValueListenableBuilder<int>(
+                                          valueListenable: videoController.currentPosition,
+                                          builder: (context, currentPosition, child) {
+                                            if (value == null) return const SizedBox();
+
+                                            return LayoutBuilder(
+                                              builder: (context, constraints) {
+                                                double progress = currentPosition / value.duration;
+                                                double progressWidth = constraints.maxWidth * progress;
+                                            
+                                                return Container(
+                                                  color: Colors.white,
+                                                  height: 2,
+                                                  width: progressWidth,
+                                                );
+                                              },
+                                            );
+                                          }
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),
@@ -244,5 +317,9 @@ class _NavigationState extends State<Navigation> {
 
   void _changeScreen(NavigationPagesEnum newScreen) {
     navigationProvider.changeNavigationPage(newScreen);
+  }
+
+  void _togglePlayPause() {
+    videoController.togglePlayPause();
   }
 }

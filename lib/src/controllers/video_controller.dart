@@ -1,11 +1,17 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:isolate';
 
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:just_audio_background/just_audio_background.dart';
+import 'package:spotired/src/controllers/playlist_controller.dart';
 import 'package:spotired/src/data/models/shared_preferences/enums/share_preference_values.enum.dart';
+import 'package:spotired/src/data/models/video/enums/video_song_status.dart';
 import 'package:spotired/src/data/models/video/video_song.dart';
 import 'package:spotired/src/data/services/data_service.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
+import 'package:spotired/src/data/models/playlist/playlist.dart' as MiPlayList;
 
 final videoController = VideoController();
 
@@ -15,8 +21,19 @@ class VideoController with ChangeNotifier {
   Map<String, VideoSong> _videos = {};
 
   // STATUS
+  ConcatenatingAudioSource playlistSource = ConcatenatingAudioSource(children: []);
+  List<String> _pendingVideos = [];
   final ValueNotifier<VideoSong?> currentVideo = ValueNotifier<VideoSong?>(null);
+  final ValueNotifier<int> currentPosition = ValueNotifier<int>(0);
+  final ValueNotifier<VideoSongStatus> videoSongStatus = ValueNotifier<VideoSongStatus>(VideoSongStatus.stopped);
   final AudioPlayer audioPlayer = AudioPlayer();
+  bool isChangingSong = false;
+  late int _lastAudioPlayerIndex;
+
+  StreamSubscription<PlayerState>? _audioPlayerSubscription;
+  StreamSubscription<SequenceState?>? _sequenceStateStream;
+  StreamSubscription<int?>? _currentIndexStream;
+
 
 
   init() async {
@@ -54,7 +71,7 @@ class VideoController with ChangeNotifier {
     await dataService.set(SharePreferenceValues.videos, jsonString);
   }
 
-  String getVideoThumbnail(String url) {
+  String getVideoThumbnailFromYTUrl(String url) {
     // Extraer el ID del video de la URL
     RegExp regExp = RegExp(r'v=([a-zA-Z0-9_-]+)');
     Match? match = regExp.firstMatch(url);
@@ -69,21 +86,170 @@ class VideoController with ChangeNotifier {
     }
   }
 
-  void startVideoAudio(String videoUrl) async {
-    currentVideo.value = getVideoByUrl(videoUrl);
+  String construyeVideoThumbnail(String file) {
+    return 'https://img.youtube.com/vi/$file';
+  }
+
+  void startVideoAudio(String videoUrl, { bool selected = false }) async {
+    _sequenceStateStream?.cancel();
+    _audioPlayerSubscription?.cancel();
+    _currentIndexStream?.cancel();
+    playlistSource.clear();
+    playlistSource = ConcatenatingAudioSource(children: []);
+    _lastAudioPlayerIndex = -1;
 
     // STOP AUDIO
     audioPlayer.stop();
+    isChangingSong = true;
 
-    final yt = YoutubeExplode();
-    // final video = await yt.videos.get(videoUrl);
+    // GET VIDEO-SONG
+    currentVideo.value = getVideoByUrl(videoUrl);
+    final videoSong = currentVideo.value!;
 
-    final manifest = await yt.videos.streamsClient.getManifest('https://www.youtube.com/watch?v=$videoUrl');
-    final audioStream = manifest.audioOnly.withHighestBitrate();
+    videoSongStatus.value = VideoSongStatus.loading;
 
-    await audioPlayer.setUrl(audioStream.url.toString());
+    // ADD VIDEO-SONG
+    await _addVideoSongToPlaylist(videoSong);
 
-    audioPlayer.play();
-    yt.close();
+    // Si es la primera canción, configuramos el reproductor
+    await audioPlayer.setAudioSource(playlistSource);
+
+    //* PREPARE LISTENERS
+    // AUDIO STATUS LISTENER
+    _audioPlayerSubscription = audioPlayer.playerStateStream.listen((state) {
+      if (state.playing && hasFinishedCurrentVideoSong()) {
+        videoSongStatus.value = VideoSongStatus.stopped;
+      } else
+      if (state.playing) {
+        videoSongStatus.value = VideoSongStatus.playing;
+      } else if (videoSongStatus.value == VideoSongStatus.playing) {
+        videoSongStatus.value = VideoSongStatus.stopped;
+      }
+    });
+
+    _currentIndexStream = audioPlayer.currentIndexStream.listen((index) {
+      ProgressiveAudioSource nextAudioSource = playlistSource.children[index!] as ProgressiveAudioSource;
+
+      // GET VIDEO-SONG
+      currentVideo.value = getVideoByUrl(nextAudioSource.tag.id);
+
+      if (_lastAudioPlayerIndex < index ) {
+        _lastAudioPlayerIndex = index;
+        // PREPARE NEXT VIDEO
+        _prepareNextVideo(selected);
+      }
+    });
+
+    audioPlayer.positionStream.listen((pos) {
+      if (isChangingSong) {
+        currentPosition.value = 0;
+        return;
+      }
+      currentPosition.value = pos.inSeconds;
+    });
+
+    isChangingSong = false;
+    if (currentVideo.value?.url == videoSong.url) audioPlayer.play();
+  }
+
+  void togglePlayPause() {
+    if (videoSongStatus.value == VideoSongStatus.playing) {
+      audioPlayer.pause();
+    } else if (hasFinishedCurrentVideoSong()) {
+      audioPlayer.seek(const Duration(seconds: 0));
+    } else {
+      audioPlayer.play();
+    }
+
+    notifyListeners();
+  }
+
+  bool hasFinishedCurrentVideoSong() {
+    return currentPosition.value + 3 >= currentVideo.value!.duration;
+  }
+
+  String? _getRandomVideo() {
+    if (_pendingVideos.isEmpty) {
+      MiPlayList.Playlist playlist = playlistController.playlists[playlistController.currentPlaylistPlaying];
+      _pendingVideos = List.from(playlist.videos);
+    }
+
+    if (_pendingVideos.isEmpty) return null;
+
+    _pendingVideos.shuffle();
+    return _pendingVideos.removeLast();
+  }
+
+  _prepareNextVideo(bool secuential) {
+    if (secuential) {
+      _prepareNextSecuentialVideo();
+    } else {
+      _prepareNextRandomVideo();
+    }
+  }
+
+  void _prepareNextSecuentialVideo() {
+    // GET THE CURRENT PLAYLIST
+    MiPlayList.Playlist playlist = playlistController.playlists[playlistController.currentPlaylistPlaying];
+
+    // GET THE CURRENT VIDEO URL
+    String? currentVideoUrl = currentVideo.value?.url;
+    if (currentVideoUrl == null) return;
+
+    // FIND THE INDEX OF THE CURRENT VIDEO IN THE PLAYLIST
+    int currentIndex = playlist.videos.indexOf(currentVideoUrl);
+
+    // DETERMINE THE INDEX OF THE NEXT VIDEO (IF LAST, GO BACK TO FIRST)
+    int nextIndex = (currentIndex + 1) % playlist.videos.length;
+
+    // GET THE NEXT VIDEO URL
+    String nextVideoUrl = playlist.videos[nextIndex];
+
+    // ADD NEXT VIDEO
+    _addVideoSongToPlaylist(getVideoByUrl(nextVideoUrl)!);
+  }
+
+  _prepareNextRandomVideo() {
+    String? nextVideoUrl = _getRandomVideo();
+
+    // ADD NEXT VIDEO
+    _addVideoSongToPlaylist(getVideoByUrl(nextVideoUrl!)!);
+  }
+
+  void playNextRandomVideo() {
+    String? nextVideoUrl = _getRandomVideo();
+    if (nextVideoUrl != null) {
+      startVideoAudio(nextVideoUrl);
+    }
+  }
+
+  _addVideoSongToPlaylist(VideoSong videoSong) async {
+    final audioUrl = await _getFinalUrlByYTUrl('https://www.youtube.com/watch?v=${videoSong.url}');
+
+    // CONFIGURE audio_player WITH AudioSource.uri
+    final audioSource = AudioSource.uri(
+      Uri.parse(audioUrl),
+      tag: MediaItem(
+        id: videoSong.url,
+        album: "YouTube",
+        title: videoSong.title,
+        artist: videoSong.author,
+      ),
+    );
+
+    // Agregar el audio a la playlist
+    playlistSource.add(audioSource);
+  }
+
+  Future<String> _getFinalUrlByYTUrl(String videoUrl) async {
+    return await Isolate.run(() async {
+      // GET YT VIDEO MANIFEST
+      YoutubeExplode yt = YoutubeExplode();
+      final manifest = await yt.videos.streamsClient.getManifest(videoUrl);
+      final audioStream = manifest.audioOnly.withHighestBitrate();
+      final audioUrl = audioStream.url.toString();
+
+      return audioUrl;
+    });
   }
 }

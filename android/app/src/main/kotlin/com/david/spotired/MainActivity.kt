@@ -1,4 +1,4 @@
-package com.example.spotired
+package com.david.spotired
 
 import io.flutter.embedding.android.FlutterActivity
 
