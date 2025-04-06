@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:spotired/src/controllers/video_controller.dart';
 import 'package:spotired/src/data/models/video/enums/video_song_status.dart';
 import 'package:spotired/src/data/models/video/video_song.dart';
-import 'package:spotired/src/pages/data/constants.dart';
 import 'package:spotired/src/pages/data/enums/navigation_pages.enum.dart';
 import 'package:spotired/src/pages/data/providers/navitation_provider.dart';
 
@@ -315,11 +314,17 @@ class _NavigationState extends State<Navigation> {
     );
   }
 
-  void _changeScreen(NavigationPagesEnum newScreen) {
+  void _changeScreen(NavigationPagesEnum newScreen) async {
     navigationProvider.changeNavigationPage(newScreen);
   }
 
   void _togglePlayPause() {
     videoController.togglePlayPause();
+  }
+
+  @override
+  void dispose() {
+    videoController.dispose();
+    super.dispose();
   }
 }

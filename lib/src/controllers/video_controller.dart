@@ -261,8 +261,15 @@ class VideoController with ChangeNotifier {
       final manifest = await yt.videos.streamsClient.getManifest(videoUrl);
       final audioStream = manifest.audioOnly.withHighestBitrate();
       final audioUrl = audioStream.url.toString();
+      yt.close();
 
       return audioUrl;
     });
+  }
+
+  @override
+  void dispose() {
+     audioPlayer.dispose();
+     super.dispose();
   }
 }

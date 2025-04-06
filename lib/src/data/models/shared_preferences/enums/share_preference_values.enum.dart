@@ -1,4 +1,5 @@
 enum SharePreferenceValues {
+  accessKey('access-key'),
   playlists('playlists'),
   videos('videos');
 
