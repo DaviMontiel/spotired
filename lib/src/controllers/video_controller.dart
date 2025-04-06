@@ -27,13 +27,13 @@ class VideoController with ChangeNotifier {
   final ValueNotifier<int> currentPosition = ValueNotifier<int>(0);
   final ValueNotifier<VideoSongStatus> videoSongStatus = ValueNotifier<VideoSongStatus>(VideoSongStatus.stopped);
   final AudioPlayer audioPlayer = AudioPlayer();
+  String videoToPrepare = '';
   bool isChangingSong = false;
   late int _lastAudioPlayerIndex;
 
   StreamSubscription<PlayerState>? _audioPlayerSubscription;
   StreamSubscription<SequenceState?>? _sequenceStateStream;
   StreamSubscription<int?>? _currentIndexStream;
-
 
 
   init() async {
@@ -96,6 +96,7 @@ class VideoController with ChangeNotifier {
     _currentIndexStream?.cancel();
     playlistSource.clear();
     playlistSource = ConcatenatingAudioSource(children: []);
+    videoToPrepare = videoUrl;
     _lastAudioPlayerIndex = -1;
 
     // STOP AUDIO
@@ -108,10 +109,15 @@ class VideoController with ChangeNotifier {
 
     videoSongStatus.value = VideoSongStatus.loading;
 
-    // ADD VIDEO-SONG
-    await _addVideoSongToPlaylist(videoSong);
+    // GET AUDIO SOURCE OF VIDEO-SONG
+    final audioSource = await _getAudioSourceFromVideoSong(videoSong);
+
+    if (videoToPrepare != videoUrl) return;
+    currentVideo.value = videoSong;
+    print('---- REPRODUCE [$videoUrl] ${videoSong.title}');
 
     // Si es la primera canción, configuramos el reproductor
+    playlistSource.add(audioSource);
     await audioPlayer.setAudioSource(playlistSource);
 
     //* PREPARE LISTENERS
@@ -217,14 +223,15 @@ class VideoController with ChangeNotifier {
   }
 
   void playNextRandomVideo() {
+    _pendingVideos = [];
     String? nextVideoUrl = _getRandomVideo();
     if (nextVideoUrl != null) {
       startVideoAudio(nextVideoUrl);
     }
   }
 
-  _addVideoSongToPlaylist(VideoSong videoSong) async {
-    final audioUrl = await _getFinalUrlByYTUrl('https://www.youtube.com/watch?v=${videoSong.url}');
+  _getAudioSourceFromVideoSong(VideoSong videoSong) async {
+    final audioUrl = await _getFinalUrlByYTUrl(videoSong.url);
 
     // CONFIGURE audio_player WITH AudioSource.uri
     final audioSource = AudioSource.uri(
@@ -236,6 +243,12 @@ class VideoController with ChangeNotifier {
         artist: videoSong.author,
       ),
     );
+
+    return audioSource;
+  }
+
+  _addVideoSongToPlaylist(VideoSong videoSong) async {
+    final audioSource = await _getAudioSourceFromVideoSong(videoSong);
 
     // Agregar el audio a la playlist
     playlistSource.add(audioSource);

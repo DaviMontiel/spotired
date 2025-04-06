@@ -88,8 +88,9 @@ class PlaylistController with ChangeNotifier {
     if (existingVideo == null) {
       existingVideo = video;
       videoController.addVideoSong(video);
-      playlist.videos.add(existingVideo.url);
     }
+
+    playlist.videos.add(existingVideo.url);
 
     notifyListeners();
 
@@ -113,6 +114,12 @@ class PlaylistController with ChangeNotifier {
       final videos = yt.playlists.getVideos(playlistId);
 
       List<VideoSong> videoList = await videos.map((video) {
+        // print('--- TITLE: ${video.title}');
+        // print('--- AUTHOR: ${video.author}');
+        // print('--- URL: ${video.url.split('v=')[1]}');
+        // print('--- THUMBNAIL: ${videoController.getVideoThumbnailFromYTUrl(video.url).split('vi/')[1]}');
+        // print('--- DURATION: ${video.duration!.inSeconds}');
+        // print('-------------------');
         return VideoSong(
           title: video.title,
           author: video.author,

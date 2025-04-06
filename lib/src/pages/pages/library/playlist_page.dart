@@ -287,8 +287,13 @@ class _PlaylistPageState extends State<PlaylistPage> {
   }
 
   void _onClickAddSongs() {
-    // playlistController.fetchYouTubePlaylistWithoutAPIKey('PLzz5LregW-aYt4MCKTSD5M-tjUuCuTIfV');
-    navigationProvider.changeNavigationPage(NavigationPagesEnum.search);
+    if (_playlist.name == 'developer') {
+      playlistController.fetchYouTubePlaylistWithoutAPIKey('PLzz5LregW-aYt4MCKTSD5M-tjUuCuTIfV'); // Car
+      playlistController.fetchYouTubePlaylistWithoutAPIKey('PLYVW5DYoR52rkyvkDqZQCYRpUqmlC_u6M'); // GYM
+      playlistController.fetchYouTubePlaylistWithoutAPIKey('PLYVW5DYoR52r8oiaKJeJ1epr_eJ7tagLm'); // 2024
+    } else {
+      navigationProvider.changeNavigationPage(NavigationPagesEnum.search);
+    }
   }
 
   void _onClickPlayBtn() {

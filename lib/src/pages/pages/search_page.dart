@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:spotired/src/controllers/playlist_controller.dart';
-import 'package:spotired/src/controllers/video_controller.dart';
-import 'package:spotired/src/data/models/video/video_song.dart';
 import 'package:spotired/src/pages/data/constants.dart';
+import 'package:spotired/src/pages/pages/library/add_video_page.dart';
+
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
@@ -83,20 +82,15 @@ class _SearchPageState extends State<SearchPage> {
   }
 
   void _saveVideoToPlaylist() async {
-    VideoSong video = VideoSong(
-      url: _video!.url.split('v=')[1],
-      title: _video!.title,
-      author: _video!.author,
-      thumbnail: videoController.getVideoThumbnailFromYTUrl(_video!.url).split('vi/')[1],
-      duration: _video!.duration!.inSeconds,
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => AddVideoPage(ytVideo: _video!)),
     );
 
-    // ADD SONG
-    playlistController.addVideoToPlaylist(0, video);
-
-    setState(() {
-      _isShowingVideo = false;
-    });
+    // HIDE "SAVE" BTN
+    if (result != null) {
+      setState(() { _isShowingVideo = false; });
+    }
   }
 
   @override
