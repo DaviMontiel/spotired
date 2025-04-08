@@ -97,6 +97,18 @@ class PlaylistController with ChangeNotifier {
     savePlaylists();
   }
 
+  void removeVideoOfPlaylist(int playlistIndex, String url) {
+    // GET PLAYLIST
+    final playlist = _playlists[playlistIndex];
+
+    // REMOVE
+    playlist.videos.remove(url);
+
+    notifyListeners();
+
+    savePlaylists();
+  }
+
   void savePlaylists() async {
     final jsonString = jsonEncode(playlists.map((p) => p.toMap()).toList());
     await dataService.set(SharePreferenceValues.playlists, jsonString);

@@ -105,6 +105,7 @@ class _NavigationState extends State<Navigation> {
                                                         Positioned(
                                                           top: -8,
                                                           bottom: -8,
+                                                          left: -18,
                                                           child: Image.network(videoController.construyeVideoThumbnail(value.thumbnail)),
                                                         )
                                                       ],

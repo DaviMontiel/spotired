@@ -2,11 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:spotired/src/controllers/access_controller.dart';
 
-class AccessPage extends StatelessWidget {
+class AccessPage extends StatelessWidget with WidgetsBindingObserver {
   const AccessPage({super.key});
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkKey();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    WidgetsBinding.instance.addObserver(this);
     _checkKey();
 
     return Scaffold(

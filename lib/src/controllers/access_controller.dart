@@ -22,7 +22,11 @@ class AccessController with ChangeNotifier {
     // GENERATE ACCESS-KEY
     if (jsonAccessKey == null) {
       final generatedKey = _generateKey(30);
-      final generatedAccessKey = AccessKey(key: generatedKey, expirationDate: DateTime.now());
+      final generatedAccessKey = AccessKey(
+        name: 'D',
+        key: generatedKey,
+        expirationDate: DateTime.now(),
+      );
       await _saveAccessKey(generatedAccessKey);
 
       accessKey = generatedAccessKey;
@@ -48,6 +52,7 @@ class AccessController with ChangeNotifier {
     for (final accessKey in accessKeys) {
       if (accessKey.key == this.accessKey.key) {
         await _giveAccess(accessKey, save: true);
+        this.accessKey = accessKey;
       }
     }
   }

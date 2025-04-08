@@ -238,7 +238,6 @@ class VideoController with ChangeNotifier {
       Uri.parse(audioUrl),
       tag: MediaItem(
         id: videoSong.url,
-        album: "YouTube",
         title: videoSong.title,
         artist: videoSong.author,
       ),

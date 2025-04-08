@@ -6,6 +6,7 @@ import 'package:spotired/src/data/models/video/video_song.dart';
 import 'package:spotired/src/pages/data/constants.dart';
 import 'package:spotired/src/pages/data/enums/navigation_pages.enum.dart';
 import 'package:spotired/src/pages/data/providers/navitation_provider.dart';
+import 'package:spotired/src/shared/widgets/modal_bottom_menu.dart';
 
 class PlaylistPage extends StatefulWidget {
   final int playlistIndex;
@@ -145,113 +146,119 @@ class _PlaylistPageState extends State<PlaylistPage> {
                     Expanded(
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: ValueListenableBuilder<VideoSong?>(
-                          valueListenable: videoController.currentVideo,
-                          builder: (context, value, child) {
-                            return ListView.builder(
-                              itemCount: _playlist.videos.length,
-                              itemBuilder: (context, index) {
-                                final videoSong = videoController.getVideoByUrl(_playlist.videos[index]);
-                                if (videoSong == null) return const SizedBox.shrink();
-              
-                                return Padding(
-                                  padding: EdgeInsets.only(
-                                    bottom: index == _playlist.videos.length - 1 ? 130.0 : 20.0,
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      // LEFT
-                                      Expanded(
-                                        child: GestureDetector(
-                                          onTap: () => _selectSong(videoSong),
-                                          child: Container(
-                                            color: Colors.transparent,
-                                            child: Row(
-                                              children: [
-                                                // SONG IMG
-                                                Container(
-                                                  width: 52,
-                                                  height: 52,
-                                                  decoration: const BoxDecoration(
-                                                    borderRadius: BorderRadius.all(Radius.circular(5)),
-                                                    color: Color.fromRGBO(35, 35, 35, 1),
-                                                  ),
-                                                  child: ClipRRect(
-                                                    borderRadius: BorderRadius.circular(5),
-                                                    child: Stack(
-                                                      children: [
-                                                        Positioned(
-                                                          top: -8,
-                                                          bottom: -8,
-                                                          child: Image.network(videoController.construyeVideoThumbnail(videoSong.thumbnail)),
-                                                        )
-                                                      ],
-                                                    ),
-                                                  ),
-                                                ),
-              
-                                                const SizedBox(width: 13),
-              
-                                                // SONG TITLE
-                                                Expanded(
-                                                  child: Padding(
-                                                    padding: const EdgeInsets.only(right: 10),
-                                                    child: Column(
-                                                      mainAxisAlignment: MainAxisAlignment.center,
-                                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                                      children: [
-                                                        Text(
-                                                          videoSong.title,
-                                                          style: TextStyle(
-                                                            fontSize: 15,
-                                                            fontWeight: FontWeight.bold,
-                                                            color: videoSong.url == videoController.currentVideo.value?.url
-                                                              ? Constants.primaryColor
-                                                              : Colors.white,
-                                                          ),
-                                                          overflow: TextOverflow.ellipsis,
-                                                          maxLines: 1,
+                        child: ListenableBuilder(
+                          listenable: playlistController,
+                          builder: (BuildContext context, Widget? child) {
+                            return ValueListenableBuilder<VideoSong?>(
+                              valueListenable: videoController.currentVideo,
+                              builder: (context, value, child) {
+                                return ListView.builder(
+                                  itemCount: _playlist.videos.length,
+                                  itemBuilder: (context, index) {
+                                    final videoSong = videoController.getVideoByUrl(_playlist.videos[index]);
+                                    if (videoSong == null) return const SizedBox.shrink();
+                                          
+                                    return Padding(
+                                      padding: EdgeInsets.only(
+                                        bottom: index == _playlist.videos.length - 1 ? 130.0 : 20.0,
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          // LEFT
+                                          Expanded(
+                                            child: GestureDetector(
+                                              onTap: () => _selectSong(videoSong),
+                                              child: Container(
+                                                color: Colors.transparent,
+                                                child: Row(
+                                                  children: [
+                                                    // SONG IMG
+                                                    Container(
+                                                      width: 52,
+                                                      height: 52,
+                                                      decoration: const BoxDecoration(
+                                                        borderRadius: BorderRadius.all(Radius.circular(5)),
+                                                        color: Color.fromRGBO(35, 35, 35, 1),
+                                                      ),
+                                                      child: ClipRRect(
+                                                        borderRadius: BorderRadius.circular(5),
+                                                        child: Stack(
+                                                          children: [
+                                                            Positioned(
+                                                              top: -8,
+                                                              bottom: -8,
+                                                              left: -20,
+                                                              child: Image.network(videoController.construyeVideoThumbnail(videoSong.thumbnail)),
+                                                            )
+                                                          ],
                                                         ),
-                                                        Text(
-                                                          videoSong.author,
-                                                          style: const TextStyle(
-                                                            fontSize: 14,
-                                                            color: Color.fromRGBO(255, 255, 255, 0.7),
-                                                          ),
-                                                        ),
-                                                      ],
+                                                      ),
                                                     ),
-                                                  ),
+                                          
+                                                    const SizedBox(width: 13),
+                                          
+                                                    // SONG TITLE
+                                                    Expanded(
+                                                      child: Padding(
+                                                        padding: const EdgeInsets.only(right: 10),
+                                                        child: Column(
+                                                          mainAxisAlignment: MainAxisAlignment.center,
+                                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                                          children: [
+                                                            Text(
+                                                              videoSong.title,
+                                                              style: TextStyle(
+                                                                fontSize: 15,
+                                                                fontWeight: FontWeight.bold,
+                                                                color: videoSong.url == videoController.currentVideo.value?.url
+                                                                  ? Constants.primaryColor
+                                                                  : Colors.white,
+                                                              ),
+                                                              overflow: TextOverflow.ellipsis,
+                                                              maxLines: 1,
+                                                            ),
+                                                            Text(
+                                                              videoSong.author,
+                                                              style: const TextStyle(
+                                                                fontSize: 14,
+                                                                color: Color.fromRGBO(255, 255, 255, 0.7),
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
                                                 ),
-                                              ],
+                                              ),
                                             ),
                                           ),
-                                        ),
-                                      ),
-                                                                  
-                                      // RIGHT
-                                      GestureDetector(
-                                        onTap: () => {},
-                                        child: const Padding(
-                                          padding: EdgeInsets.only(right: 5),
-                                          child: Row(
-                                            children: [
-                                              Icon(
-                                                Icons.more_horiz_sharp,
-                                                color: Color.fromRGBO(255, 255, 255, 0.7),
-                                                size: 25,
+                                                                      
+                                          // RIGHT
+                                          GestureDetector(
+                                            onTap: () => _onClickVideoSongMenu(videoSong),
+                                            child: const Padding(
+                                              padding: EdgeInsets.only(right: 5),
+                                              child: Row(
+                                                children: [
+                                                  Icon(
+                                                    Icons.more_horiz_sharp,
+                                                    color: Color.fromRGBO(255, 255, 255, 0.7),
+                                                    size: 25,
+                                                  ),
+                                                ],
                                               ),
-                                            ],
+                                            ),
                                           ),
-                                        ),
+                                        ],
                                       ),
-                                    ],
-                                  ),
+                                    );
+                                  },
                                 );
                               },
                             );
-                          },
+                          }
                         ),
                       ),
                     ),
@@ -299,6 +306,10 @@ class _PlaylistPageState extends State<PlaylistPage> {
   void _onClickPlayBtn() {
     playlistController.setCurrentPlaylist(widget.playlistIndex);
     videoController.playNextRandomVideo();
+  }
+
+  void _onClickVideoSongMenu(VideoSong videoSong) {
+    ModalBottomMenu().videoSongMenu(context, widget.playlistIndex, videoSong);
   }
 
   void _selectSong(VideoSong video) {

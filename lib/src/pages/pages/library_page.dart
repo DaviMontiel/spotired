@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:spotired/src/controllers/access_controller.dart';
 import 'package:spotired/src/controllers/playlist_controller.dart';
 import 'package:spotired/src/pages/data/constants.dart';
 import 'package:spotired/src/pages/data/providers/navitation_provider.dart';
@@ -71,10 +72,9 @@ class _LibraryPageState extends State<LibraryPage> {
                         color: Color.fromRGBO(247, 114, 161, 1),
                         shape: BoxShape.circle,
                       ),
-                      padding: const EdgeInsets.only(left: 2, top: 1),
-                      child: const Text(
-                        'D',
-                        style: TextStyle(
+                      child: Text(
+                        accessController.accessKey.name.substring(0, 1),
+                        style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                           color: Colors.black,
