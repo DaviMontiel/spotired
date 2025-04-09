@@ -30,6 +30,8 @@ class VideoController with ChangeNotifier {
   String videoToPrepare = '';
   bool isChangingSong = false;
   late int _lastAudioPlayerIndex;
+  bool _normalSecuence = true;
+  bool _error = true;
 
   StreamSubscription<PlayerState>? _audioPlayerSubscription;
   StreamSubscription<SequenceState?>? _sequenceStateStream;
@@ -98,6 +100,8 @@ class VideoController with ChangeNotifier {
     playlistSource = ConcatenatingAudioSource(children: []);
     videoToPrepare = videoUrl;
     _lastAudioPlayerIndex = -1;
+    _normalSecuence = selected;
+    _error = false;
 
     // STOP AUDIO
     audioPlayer.stop();
@@ -163,6 +167,8 @@ class VideoController with ChangeNotifier {
       audioPlayer.pause();
     } else if (hasFinishedCurrentVideoSong()) {
       audioPlayer.seek(const Duration(seconds: 0));
+    } else if (videoSongStatus.value == VideoSongStatus.paused && _error) {
+      startVideoAudio(currentVideo.value!.url, selected: _normalSecuence);
     } else {
       audioPlayer.play();
     }
@@ -231,11 +237,19 @@ class VideoController with ChangeNotifier {
   }
 
   _getAudioSourceFromVideoSong(VideoSong videoSong) async {
-    final audioUrl = await _getFinalUrlByYTUrl(videoSong.url);
+    String? audioUrl;
+    try {
+      audioUrl = await _getFinalUrlByYTUrl(videoSong.url);
+      if (audioUrl == null) return;
+    } catch (ex) {
+      videoSongStatus.value = VideoSongStatus.paused;
+      _error = true;
+      print(ex);
+    }
 
     // CONFIGURE audio_player WITH AudioSource.uri
     final audioSource = AudioSource.uri(
-      Uri.parse(audioUrl),
+      Uri.parse(audioUrl!),
       tag: MediaItem(
         id: videoSong.url,
         title: videoSong.title,
@@ -249,20 +263,27 @@ class VideoController with ChangeNotifier {
   _addVideoSongToPlaylist(VideoSong videoSong) async {
     final audioSource = await _getAudioSourceFromVideoSong(videoSong);
 
+    while (isChangingSong) {
+      await Future.delayed(const Duration(milliseconds: 100));
+    }
+
     // Agregar el audio a la playlist
     playlistSource.add(audioSource);
   }
 
-  Future<String> _getFinalUrlByYTUrl(String videoUrl) async {
+  Future<String?> _getFinalUrlByYTUrl(String videoUrl) async {
     return await Isolate.run(() async {
-      // GET YT VIDEO MANIFEST
-      YoutubeExplode yt = YoutubeExplode();
-      final manifest = await yt.videos.streamsClient.getManifest(videoUrl);
-      final audioStream = manifest.audioOnly.withHighestBitrate();
-      final audioUrl = audioStream.url.toString();
-      yt.close();
+      final YoutubeExplode yt = YoutubeExplode();
+      try {
+        // GET YT VIDEO MANIFEST
+        final manifest = await yt.videos.streamsClient.getManifest(videoUrl);
+        final audioStream = manifest.audioOnly.withHighestBitrate();
+        final audioUrl = audioStream.url.toString();
 
-      return audioUrl;
+        return audioUrl;
+      } finally {
+        yt.close();
+      }
     });
   }
 
