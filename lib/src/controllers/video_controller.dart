@@ -276,7 +276,7 @@ class VideoController with ChangeNotifier {
       final YoutubeExplode yt = YoutubeExplode();
       try {
         // GET YT VIDEO MANIFEST
-        final manifest = await yt.videos.streamsClient.getManifest(videoUrl);
+        final manifest = await yt.videos.streams.getManifest(videoUrl, ytClients: [ YoutubeApiClient.androidVr ]);
         final audioStream = manifest.audioOnly.withHighestBitrate();
         final audioUrl = audioStream.url.toString();
 
