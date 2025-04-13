@@ -1,25 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:spotired/src/controllers/playlist_controller.dart';
 import 'package:spotired/src/controllers/video_controller.dart';
+import 'package:spotired/src/data/models/playlist/playlist.dart';
 import 'package:spotired/src/data/models/video/video_song.dart';
 import 'package:spotired/src/pages/data/constants.dart';
 import 'package:spotired/src/pages/pages/library/create_playlist_page.dart';
-import 'package:youtube_explode_dart/youtube_explode_dart.dart';
+import 'package:youtube_explode_dart/youtube_explode_dart.dart' as YT;
 
 class AddVideoPage extends StatefulWidget {
 
-  final Video ytVideo;
+  final YT.Video ytVideo;
 
-  const AddVideoPage({
+  final String url;
+
+  AddVideoPage({
     super.key,
     required this.ytVideo,
-  });
+  }): url = ytVideo.url.split('v=')[1];
 
   @override
   State<AddVideoPage> createState() => _AddVideoPageState();
 }
 
 class _AddVideoPageState extends State<AddVideoPage> {
+
+  Map<int, bool> initPlaylistHasVideoSong = {};
+  Set<int> playlistsChanges = {};
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -67,7 +74,7 @@ class _AddVideoPageState extends State<AddVideoPage> {
               ElevatedButton(
                 onPressed: _onClickCreatePlaylistBtn,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Constants.primaryColor,
+                  backgroundColor: Colors.white,
                   foregroundColor: Colors.black,
                   padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
                   shape: RoundedRectangleBorder(
@@ -90,6 +97,34 @@ class _AddVideoPageState extends State<AddVideoPage> {
                   return _showPlaylistsBody();
                 }
               ),
+
+              Container(
+                color: const Color.fromARGB(255, 18, 18, 18),
+                padding: const EdgeInsets.only(top: 20, bottom: 20),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    ElevatedButton(
+                      onPressed: _onClickDoneBtn,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Constants.primaryColor,
+                        foregroundColor: Colors.black,
+                        padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                      ),
+                      child: const Text(
+                        'Hecho',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )
             ],
           ),
         ),
@@ -120,12 +155,11 @@ class _AddVideoPageState extends State<AddVideoPage> {
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: ListView.builder(
-          padding: const EdgeInsets.only(bottom: 100),
           itemCount: playlistController.playlists.length,
           itemBuilder: (context, playlistIndex) {
             return Padding(
               padding: const EdgeInsets.only(bottom: 20),
-              child: _playlistRow(playlistIndex),
+              child: _playlistRow(playlistController.playlists.values.elementAt(playlistIndex)),
             );
           },
         ),
@@ -133,7 +167,15 @@ class _AddVideoPageState extends State<AddVideoPage> {
     );
   }
 
-  Widget _playlistRow(int playlistIndex) {
+  Widget _playlistRow(Playlist playlist) {
+    bool playlistHasVideoSong = false;
+    VideoSong? videoSong = videoController.getVideoByUrl(widget.url);
+    if (videoSong != null && videoSong.playlists.contains(playlist.id)) {
+      playlistHasVideoSong = true;
+    }
+
+    initPlaylistHasVideoSong.addAll({playlist.id: playlistHasVideoSong});
+
     double scale = 1;
 
     void pressingSlale(setState) {
@@ -165,7 +207,12 @@ class _AddVideoPageState extends State<AddVideoPage> {
             normalScale(setState);
           },
           onTap: () {
-            _saveVideoToPlaylist(playlistIndex);
+            if (playlistsChanges.contains(playlist.id)) {
+              playlistsChanges.remove(playlist.id);
+            } else {
+              playlistsChanges.add(playlist.id);
+            }
+            playlistHasVideoSong = !playlistHasVideoSong;
           },
           child: AnimatedScale(
             duration: const Duration(milliseconds: 100),
@@ -174,48 +221,61 @@ class _AddVideoPageState extends State<AddVideoPage> {
               height: 70,
               color: Colors.transparent,
               child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Container(
-                    width: 100,
-                    height: double.infinity,
-                    color: const Color.fromRGBO(35, 35, 35, 1),
-                    child: const Center(
-                      child: Icon(
-                        Icons.folder_outlined,
-                        size: 35,
-                        color: Color.fromRGBO(125, 125, 125, 1),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 15),
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  Row(
                     children: [
-                      // PLAYLIST TITLE
-                      Text(
-                        playlistController.playlists[playlistIndex].name,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: Constants.tertiaryColor,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                      Container(
+                        width: 100,
+                        height: double.infinity,
+                        color: const Color.fromRGBO(35, 35, 35, 1),
+                        child: const Center(
+                          child: Icon(
+                            Icons.folder_outlined,
+                            size: 35,
+                            color: Color.fromRGBO(125, 125, 125, 1),
+                          ),
                         ),
                       ),
+                      const SizedBox(width: 15),
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // PLAYLIST TITLE
+                          Text(
+                            playlist.name,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: Constants.tertiaryColor,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
 
-                      const SizedBox(height: 2),
+                          const SizedBox(height: 2),
 
-                      // SIZE
-                      Text(
-                        'Lista • ${playlistController.playlists[playlistIndex].videos.length} canciones',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: Constants.tertiaryColor,
-                          fontSize: 14,
-                        ),
+                          // SIZE
+                          Text(
+                            'Lista • ${playlist.videos.length} canciones',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: Constants.tertiaryColor,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
-                  )
+                  ),
+
+                  Icon(
+                    playlistHasVideoSong
+                      ? Icons.check_circle
+                      : Icons.circle_outlined,
+                    color: Constants.primaryColor,
+                    size: 26,
+                  ),
                 ],
               ),
             ),
@@ -225,7 +285,23 @@ class _AddVideoPageState extends State<AddVideoPage> {
     });
   }
 
-  void _saveVideoToPlaylist(int playlistIndex) async {
+  void _onClickDoneBtn() {
+    initPlaylistHasVideoSong;
+    for (var playlistId in playlistsChanges) {
+      final isOnTheList = initPlaylistHasVideoSong[playlistId]!;
+
+      if (isOnTheList) {
+        playlistController.removeVideoOfPlaylist(playlistId, widget.url);
+      } else {
+        _saveVideoToPlaylist(playlistId);
+      }
+    }
+
+    // GO BACK
+    Navigator.pop(context);
+  }
+
+  void _saveVideoToPlaylist(int playlistId) async {
     VideoSong video = VideoSong(
       url: widget.ytVideo.url.split('v=')[1],
       title: widget.ytVideo.title,
@@ -235,19 +311,6 @@ class _AddVideoPageState extends State<AddVideoPage> {
     );
 
     // ADD SONG
-    playlistController.addVideoToPlaylist(playlistIndex, video);
-
-    // GO BACK
-    Navigator.pop(context, true);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Audio agregado a la playlist.'),
-        duration: Duration(seconds: 3),
-        backgroundColor: Colors.black,
-        behavior: SnackBarBehavior.floating,
-        margin: EdgeInsets.fromLTRB(20, 40, 20, 130),
-      ),
-    );
+    playlistController.addVideoToPlaylist(playlistId, video);
   }
 }

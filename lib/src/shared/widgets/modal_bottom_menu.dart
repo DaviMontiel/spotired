@@ -7,17 +7,17 @@ import 'package:spotired/src/pages/pages/library/create_playlist_page.dart';
 
 class ModalBottomMenu {
 
-  playlistMenu(BuildContext context, int playlistIndex) {
+  playlistMenu(BuildContext context, int playlistid) {
     final List<dynamic> btns = [
       {
         'icon': Icons.edit_note_rounded,
         'text': 'Cambiar nombre',
-        'event': () => _changePlaylistName(context, playlistIndex),
+        'event': () => _changePlaylistName(context, playlistid),
       },
       {
         'icon': Icons.close,
         'text': 'Eliminar playlist',
-        'event': () => _removePlaylist(context, playlistIndex),
+        'event': () => _removePlaylist(context, playlistid),
       },
     ];
     final int modalHeight = 116 + 65 * btns.length;
@@ -76,7 +76,7 @@ class ModalBottomMenu {
                             children: [
                               // PLAYLIST TITLE
                               Text(
-                                playlistController.playlists[playlistIndex].name,
+                                playlistController.playlists[playlistid]!.name,
                                 textAlign: TextAlign.center,
                                 style: const TextStyle(
                                   color: Constants.tertiaryColor,
@@ -140,12 +140,12 @@ class ModalBottomMenu {
     );
   }
 
-  videoSongMenu(BuildContext context, int playlistIndex, VideoSong videoSong) {
+  videoSongMenu(BuildContext context, int playlistid, VideoSong videoSong) {
     final List<dynamic> btns = [
       {
         'icon': Icons.close,
         'text': 'Eliminar de la playlist',
-        'event': () => _removeUrlOfPlaylist(context, playlistIndex, videoSong.url),
+        'event': () => _removeUrlOfPlaylist(context, playlistid, videoSong.url),
       },
     ];
     final int modalHeight = 116 + 65 * btns.length;
@@ -282,15 +282,15 @@ class ModalBottomMenu {
     );
   }
 
-  _removePlaylist(BuildContext context, int playlistIndex) {
-    playlistController.removePlaylist(playlistIndex);
+  _removePlaylist(BuildContext context, int playlistid) {
+    playlistController.removePlaylist(playlistid);
     Navigator.pop(context);
   }
 
-  _changePlaylistName(BuildContext context, int playlistIndex) {
+  _changePlaylistName(BuildContext context, int playlistid) {
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => CreatePlaylistPage(playlistIndex: playlistIndex),
+        pageBuilder: (context, animation, secondaryAnimation) => CreatePlaylistPage(playlistId: playlistid),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(
             opacity: animation,
@@ -304,8 +304,8 @@ class ModalBottomMenu {
     // Navigator.pop(context);
   }
 
-  _removeUrlOfPlaylist(BuildContext context, int playlistIndex, String url) {
-    playlistController.removeVideoOfPlaylist(playlistIndex, url);
+  _removeUrlOfPlaylist(BuildContext context, int playlistid, String url) {
+    playlistController.removeVideoOfPlaylist(playlistid, url);
     Navigator.pop(context);
   }
 }

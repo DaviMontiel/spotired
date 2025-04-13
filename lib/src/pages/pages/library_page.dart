@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:spotired/src/controllers/access_controller.dart';
 import 'package:spotired/src/controllers/playlist_controller.dart';
+import 'package:spotired/src/data/models/playlist/playlist.dart';
 import 'package:spotired/src/pages/data/constants.dart';
 import 'package:spotired/src/pages/data/providers/navitation_provider.dart';
 import 'package:spotired/src/pages/pages/library/create_playlist_page.dart';
@@ -158,7 +159,7 @@ class _LibraryPageState extends State<LibraryPage> {
           itemBuilder: (context, playlistIndex) {
             return Padding(
               padding: const EdgeInsets.only(bottom: 20),
-              child: _playlistRow(playlistIndex),
+              child: _playlistRow(playlistController.playlists.values.elementAt(playlistIndex)),
             );
           },
         ),
@@ -166,7 +167,7 @@ class _LibraryPageState extends State<LibraryPage> {
     );
   }
 
-  Widget _playlistRow(int playlistIndex) {
+  Widget _playlistRow(Playlist playlist) {
     double scale = 1;
 
     void pressingSlale(setState) {
@@ -196,10 +197,10 @@ class _LibraryPageState extends State<LibraryPage> {
           },
           onLongPress: () {
             normalScale(setState);
-            _showPlaylistOptions(playlistIndex);
+            _showPlaylistOptions(playlist.id);
           },
           onTap: () {
-            _openPlaylist(playlistIndex);
+            _openPlaylist(playlist.id);
           },
           child: AnimatedScale(
             duration: const Duration(milliseconds: 100),
@@ -228,7 +229,7 @@ class _LibraryPageState extends State<LibraryPage> {
                     children: [
                       // PLAYLIST TITLE
                       Text(
-                        playlistController.playlists[playlistIndex].name,
+                        playlist.name,
                         textAlign: TextAlign.center,
                         style: const TextStyle(
                           color: Constants.tertiaryColor,
@@ -241,7 +242,7 @@ class _LibraryPageState extends State<LibraryPage> {
 
                       // SIZE
                       Text(
-                        'Lista • ${playlistController.playlists[playlistIndex].videos.length} canciones',
+                        'Lista • ${playlist.videos.length} canciones',
                         textAlign: TextAlign.center,
                         style: const TextStyle(
                           color: Constants.tertiaryColor,
@@ -276,12 +277,12 @@ class _LibraryPageState extends State<LibraryPage> {
     );
   }
 
-  void _openPlaylist(int playlistIndex) {
-    navigationProvider.changeCurrentPage(context, PlaylistPage(playlistIndex: playlistIndex));
+  void _openPlaylist(int playlistId) {
+    navigationProvider.changeCurrentPage(context, PlaylistPage(playlistId: playlistId));
     
   }
 
-  void _showPlaylistOptions(int playlistIndex) {
-    ModalBottomMenu().playlistMenu(context, playlistIndex);
+  void _showPlaylistOptions(int playlistId) {
+    ModalBottomMenu().playlistMenu(context, playlistId);
   }
 }

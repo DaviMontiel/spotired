@@ -63,14 +63,29 @@ class VideoController with ChangeNotifier {
     _videos[video.url] = video;
     notifyListeners();
 
-    saveVideoSong();
+    saveVideoSongs();
   }
 
-  void saveVideoSong() async {
+  void saveVideoSongs() async {
     final jsonString = jsonEncode(
       _videos.map((key, value) => MapEntry(key, value.toMap()))
     );
     await dataService.set(SharePreferenceValues.videos, jsonString);
+  }
+
+  void removePlaylistOfVideoSong(String url, int playlistId) {
+    VideoSong? videoSong = getVideoByUrl(url);
+    if (videoSong == null) return;
+
+    // REMOVE PLAYLIST OF VIDEO-SONG
+    videoSong.playlists.remove(playlistId);
+
+    // REMOVE VIDEO-SONG
+    if (videoSong.playlists.isEmpty) {
+      _videos.remove(videoSong.url);
+    }
+
+    saveVideoSongs();
   }
 
   String getVideoThumbnailFromYTUrl(String url) {
@@ -182,7 +197,7 @@ class VideoController with ChangeNotifier {
 
   String? _getRandomVideo() {
     if (_pendingVideos.isEmpty) {
-      MiPlayList.Playlist playlist = playlistController.playlists[playlistController.currentPlaylistPlaying];
+      MiPlayList.Playlist playlist = playlistController.playlists[playlistController.currentPlaylistPlayingId]!;
       _pendingVideos = List.from(playlist.videos);
     }
 
@@ -202,7 +217,7 @@ class VideoController with ChangeNotifier {
 
   void _prepareNextSecuentialVideo() {
     // GET THE CURRENT PLAYLIST
-    MiPlayList.Playlist playlist = playlistController.playlists[playlistController.currentPlaylistPlaying];
+    MiPlayList.Playlist playlist = playlistController.playlists[playlistController.currentPlaylistPlayingId]!;
 
     // GET THE CURRENT VIDEO URL
     String? currentVideoUrl = currentVideo.value?.url;

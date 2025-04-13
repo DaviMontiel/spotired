@@ -82,15 +82,10 @@ class _SearchPageState extends State<SearchPage> {
   }
 
   void _saveVideoToPlaylist() async {
-    final result = await Navigator.push(
+    Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => AddVideoPage(ytVideo: _video!)),
     );
-
-    // HIDE "SAVE" BTN
-    if (result != null) {
-      setState(() { _isShowingVideo = false; });
-    }
   }
 
   @override

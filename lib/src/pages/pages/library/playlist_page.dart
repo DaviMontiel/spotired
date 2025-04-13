@@ -9,11 +9,11 @@ import 'package:spotired/src/pages/data/providers/navitation_provider.dart';
 import 'package:spotired/src/shared/widgets/modal_bottom_menu.dart';
 
 class PlaylistPage extends StatefulWidget {
-  final int playlistIndex;
+  final int playlistId;
 
   const PlaylistPage({
     super.key,
-    required this.playlistIndex,
+    required this.playlistId,
   });
 
   @override
@@ -26,7 +26,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
 
   @override
   void initState() {
-    _playlist = playlistController.playlists[widget.playlistIndex];
+    _playlist = playlistController.playlists[widget.playlistId]!;
     super.initState();
   }
   
@@ -304,16 +304,16 @@ class _PlaylistPageState extends State<PlaylistPage> {
   }
 
   void _onClickPlayBtn() {
-    playlistController.setCurrentPlaylist(widget.playlistIndex);
+    playlistController.setCurrentPlaylist(widget.playlistId);
     videoController.playNextRandomVideo();
   }
 
   void _onClickVideoSongMenu(VideoSong videoSong) {
-    ModalBottomMenu().videoSongMenu(context, widget.playlistIndex, videoSong);
+    ModalBottomMenu().videoSongMenu(context, widget.playlistId, videoSong);
   }
 
   void _selectSong(VideoSong video) {
-    playlistController.setCurrentPlaylist(widget.playlistIndex);
+    playlistController.setCurrentPlaylist(widget.playlistId);
     videoController.startVideoAudio(video.url, selected: true);
   }
 }

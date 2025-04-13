@@ -12,12 +12,12 @@ final playlistController = PlaylistController();
 
 class PlaylistController with ChangeNotifier {
   // DATA
-  List<Playlist> _playlists = [];
-  List<Playlist> get playlists => _playlists;
+  Map<int, Playlist> _playlists = {};
+  Map<int, Playlist> get playlists => _playlists;
 
   // STATUS
-  int _currentPlaylistPlaying = -1;
-  int get currentPlaylistPlaying => _currentPlaylistPlaying;
+  int _currentPlaylistPlayingId = -1;
+  int get currentPlaylistPlayingId => _currentPlaylistPlayingId;
 
   init() async {
     // GET SAVED PLAYLISTS
@@ -25,29 +25,39 @@ class PlaylistController with ChangeNotifier {
     if (playlistsString == null) return;
 
     // Decodificar el JSON a una lista de mapas
-    List<dynamic> decodedList = jsonDecode(playlistsString);
+    final decodedList = jsonDecode(playlistsString);
 
     // Convertir los mapas en objetos Playlist
-    List<Playlist> playlists = decodedList.map((item) {
-      return Playlist(
-        name: item['name'],
-        videos: List<String>.from(item['videos']),
-      );
-    }).toList();
+    Map<int, Playlist> playlists = {};
+    decodedList.forEach((key, value) {
+      playlists[int.parse(key)] = Playlist.fromMap(value);
+    });
 
     _playlists = playlists;
   }
 
   Playlist? findPlaylistByName(String name) {
-    for (int f = 0; f < playlists.length; f++) {
-      if (playlists[f].name == name) return _playlists[f];
+    for (final entry in playlists.entries) {
+      if (entry.value.name == name) return entry.value;
     }
 
     return null;
   }
 
-  void renamePlaylist(int index, String newName) async {
-    Playlist playlist = playlists[index];
+  List<Playlist> getPlaylistsOfVideoSong(String url) {
+    List<Playlist> playlists = [];
+    for (final entry in this.playlists.entries) {
+      if (entry.value.videos.contains(url)) {
+        playlists.add(entry.value);
+      }
+    }
+
+    return playlists;
+  }
+
+  void renamePlaylist(int id, String newName) async {
+    Playlist? playlist = playlists[id];
+    if (playlist == null) return;
 
     playlist.name = newName;
 
@@ -59,16 +69,29 @@ class PlaylistController with ChangeNotifier {
     final playlist = findPlaylistByName(name);
     if (playlist != null) return null;
 
-    _playlists.add(Playlist(name: name, videos: []));
+    final int playlistId = playlists.values.isNotEmpty
+      ? playlists.values.last.id + 1
+      : 0;
+
+    _playlists.addAll({
+      playlistId: Playlist(id: playlistId, name: name, videos: [])
+    });
     notifyListeners();
 
     savePlaylists();
-    return _playlists.length -1;
+    return playlistId;
   }
 
-  void removePlaylist(int playlistIndex) {
-    // REMOVE
-    _playlists.removeAt(playlistIndex);
+  void removePlaylist(int playlistid) {
+    // REMOVE VIDEO-SONGS
+    final videosCopy = List<String>.from(_playlists[playlistid]!.videos);
+    for (final videoUrl in videosCopy) {
+      removeVideoOfPlaylist(playlistid, videoUrl);
+      videoController.removePlaylistOfVideoSong(videoUrl, playlistid);
+    }
+
+    // REMOVE PLAYLIST
+    _playlists.remove(playlistid);
 
     // NOTIFY
     notifyListeners();
@@ -77,9 +100,9 @@ class PlaylistController with ChangeNotifier {
     savePlaylists();
   }
 
-  void addVideoToPlaylist(int playlistIndex, VideoSong video) {
+  void addVideoToPlaylist(int playlistid, VideoSong video) {
     // GET PLAYLIST
-    final playlist = _playlists[playlistIndex];
+    final playlist = _playlists[playlistid]!;
 
     // FIND VIDEO-SONG
     VideoSong? existingVideo = videoController.getVideoByUrl(video.url);
@@ -90,18 +113,21 @@ class PlaylistController with ChangeNotifier {
       videoController.addVideoSong(video);
     }
 
+    existingVideo.playlists.add(playlistid);
     playlist.videos.add(existingVideo.url);
 
     notifyListeners();
 
+    videoController.saveVideoSongs();
     savePlaylists();
   }
 
-  void removeVideoOfPlaylist(int playlistIndex, String url) {
+  void removeVideoOfPlaylist(int playlistid, String url) {
     // GET PLAYLIST
-    final playlist = _playlists[playlistIndex];
+    final playlist = _playlists[playlistid]!;
 
     // REMOVE
+    videoController.removePlaylistOfVideoSong(url, playlistid);
     playlist.videos.remove(url);
 
     notifyListeners();
@@ -110,20 +136,22 @@ class PlaylistController with ChangeNotifier {
   }
 
   void savePlaylists() async {
-    final jsonString = jsonEncode(playlists.map((p) => p.toMap()).toList());
+    final jsonString = jsonEncode(
+      playlists.map((key, value) => MapEntry(key.toString(), value.toMap()))
+    );
     await dataService.set(SharePreferenceValues.playlists, jsonString);
   }
 
-  void setCurrentPlaylist(int index) {
-    _currentPlaylistPlaying = index;
+  void setCurrentPlaylist(int id) {
+    _currentPlaylistPlayingId = id;
   }
 
-  Future<void> fetchYouTubePlaylistWithoutAPIKey(String playlistId) async {
+  Future<void> fetchYouTubePlaylistWithoutAPIKey(String playlistYtId) async {
     final yt = YT.YoutubeExplode();
     
     try {
-      final playlist = await yt.playlists.get(playlistId);
-      final videos = yt.playlists.getVideos(playlistId);
+      final playlist = await yt.playlists.get(playlistYtId);
+      final videos = yt.playlists.getVideos(playlistYtId);
 
       List<VideoSong> videoList = await videos.map((video) {
         // print('--- TITLE: ${video.title}');
@@ -141,11 +169,11 @@ class PlaylistController with ChangeNotifier {
         );
       }).toList();
 
-      final playlistIndex = await addPlaylist('YT: ${playlist.title}');
+      final playlistId = await addPlaylist('YT: ${playlist.title}');
 
       // ADD SONGs
       for (var videoSong in videoList) {
-        addVideoToPlaylist(playlistIndex!, videoSong);
+        addVideoToPlaylist(playlistId!, videoSong);
       }
     } catch (e) {
       print('Error al obtener la playlist: $e');

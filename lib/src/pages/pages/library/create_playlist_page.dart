@@ -4,11 +4,11 @@ import 'package:spotired/src/data/models/playlist/playlist.dart';
 import 'package:spotired/src/pages/data/constants.dart';
 
 class CreatePlaylistPage extends StatefulWidget {
-  final int? playlistIndex;
+  final int? playlistId;
 
   const CreatePlaylistPage({
     super.key,
-    this.playlistIndex,
+    this.playlistId,
   });
 
   @override
@@ -26,8 +26,8 @@ class _CreatePlaylistPageState extends State<CreatePlaylistPage> {
   @override
   void initState() {
     // SET PLAYLIST TEXT
-    if (widget.playlistIndex != null) {
-      _playlistToEdit = playlistController.playlists[widget.playlistIndex!];
+    if (widget.playlistId != null) {
+      _playlistToEdit = playlistController.playlists[widget.playlistId!];
       _tfController.text = _playlistToEdit!.name;
     } else {
       _tfController.text = 'Mi lista n.º 25';
@@ -164,7 +164,7 @@ class _CreatePlaylistPageState extends State<CreatePlaylistPage> {
 
   void _editPlayList(String playlistTitle) {
     // RENAME PLAYLIST
-    playlistController.renamePlaylist(widget.playlistIndex!, playlistTitle);
+    playlistController.renamePlaylist(widget.playlistId!, playlistTitle);
 
     // GO BACK
     Navigator.pop(context);
