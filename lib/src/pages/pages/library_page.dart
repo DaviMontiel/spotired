@@ -4,7 +4,6 @@ import 'package:spotired/src/controllers/playlist_controller.dart';
 import 'package:spotired/src/data/models/playlist/playlist.dart';
 import 'package:spotired/src/pages/data/constants.dart';
 import 'package:spotired/src/pages/data/providers/navitation_provider.dart';
-import 'package:spotired/src/pages/pages/library/create_playlist_page.dart';
 import 'package:spotired/src/pages/pages/library/playlist_page.dart';
 import 'package:spotired/src/shared/widgets/modal_bottom_menu.dart';
 
@@ -97,7 +96,7 @@ class _LibraryPageState extends State<LibraryPage> {
                   ],
                 ),
                 GestureDetector(
-                  onTap: _openCreatePlaylistPage,
+                  onTap: _showAddBtnOptions,
                   child: const Icon(
                     Icons.add,
                     color: Constants.tertiaryColor,
@@ -223,33 +222,37 @@ class _LibraryPageState extends State<LibraryPage> {
                     ),
                   ),
                   const SizedBox(width: 15),
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // PLAYLIST TITLE
-                      Text(
-                        playlist.name,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: Constants.tertiaryColor,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // PLAYLIST TITLE
+                        Text(
+                          playlist.name,
+                          textAlign: TextAlign.center,
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                          style: const TextStyle(
+                            color: Constants.tertiaryColor,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
-
-                      const SizedBox(height: 2),
-
-                      // SIZE
-                      Text(
-                        'Lista • ${playlist.videos.length} canciones',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: Constants.tertiaryColor,
-                          fontSize: 14,
+                    
+                        const SizedBox(height: 2),
+                    
+                        // SIZE
+                        Text(
+                          'Lista • ${playlist.videos.length} canciones',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Constants.tertiaryColor,
+                            fontSize: 14,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   )
                 ],
               ),
@@ -260,26 +263,12 @@ class _LibraryPageState extends State<LibraryPage> {
     });
   }
 
-  void _openCreatePlaylistPage() {
-    Navigator.of(context).push(
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            const CreatePlaylistPage(),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(
-            opacity: animation,
-            child: child,
-          );
-        },
-        transitionDuration: const Duration(milliseconds: 100),
-        reverseTransitionDuration: const Duration(milliseconds: 100),
-      ),
-    );
-  }
-
   void _openPlaylist(int playlistId) {
     navigationProvider.changeCurrentPage(context, PlaylistPage(playlistId: playlistId));
-    
+  }
+
+  void _showAddBtnOptions() {
+    ModalBottomMenu().addPlaylistMenu(context);
   }
 
   void _showPlaylistOptions(int playlistId) {
