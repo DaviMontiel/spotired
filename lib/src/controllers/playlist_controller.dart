@@ -154,7 +154,6 @@ class PlaylistController with ChangeNotifier {
       final videos = yt.playlists.getVideos(playlistYtId);
 
       List<VideoSong> videoList = await videos.map((video) {
-        // print('--- TITLE: ${video.title}');
         // print('--- AUTHOR: ${video.author}');
         // print('--- URL: ${video.url.split('v=')[1]}');
         // print('--- THUMBNAIL: ${videoController.getVideoThumbnailFromYTUrl(video.url).split('vi/')[1]}');
@@ -169,7 +168,7 @@ class PlaylistController with ChangeNotifier {
         );
       }).toList();
 
-      final playlistId = await addPlaylist('YT: ${playlist.title}');
+      final playlistId = await addPlaylist('YT: ${playlist.title} - ${DateTime.now()}');
 
       // ADD SONGs
       for (var videoSong in videoList) {

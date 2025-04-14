@@ -26,6 +26,12 @@ android {
         versionName = flutter.versionName
     }
 
+    applicationVariants.all { variant ->
+        variant.outputs.all {
+            outputFileName = "Spotired.apk"
+        }
+    }
+
     buildTypes {
         release {
             signingConfig = signingConfigs.debug

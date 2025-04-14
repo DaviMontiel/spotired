@@ -52,7 +52,6 @@ class AccessController with ChangeNotifier {
     for (final accessKey in accessKeys) {
       if (accessKey.key == this.accessKey.key) {
         await _giveAccess(accessKey, save: true);
-        this.accessKey = accessKey;
       }
     }
   }
@@ -72,6 +71,8 @@ class AccessController with ChangeNotifier {
   }
 
   _giveAccess(AccessKey accessKey, {required bool save}) async {
+    this.accessKey = accessKey;
+
     if (accessKey.expirationDate == null) {
       haveAccess.value = true;
     } else if (DateTime.now().isBefore(accessKey.expirationDate!)) {
