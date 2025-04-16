@@ -1,4 +1,5 @@
 enum SharePreferenceValues {
+  appSettings('app-settings'),
   accessKey('access-key'),
   playlists('playlists'),
   videos('videos');

@@ -34,7 +34,7 @@ class _ImportPlaylistPageState extends State<ImportPlaylistPage> {
 
             Container(
               color: const Color.fromARGB(255, 18, 18, 18),
-              padding: const EdgeInsets.only(left: 5),
+              padding: const EdgeInsets.only(left: 5, top: 11),
               alignment: Alignment.topLeft,
               child: GestureDetector(
                 onTap: _goBack,
@@ -352,7 +352,7 @@ class _ImportPlaylistPageState extends State<ImportPlaylistPage> {
     // GET PLAYLIST
     final yt = YT.YoutubeExplode();
     try {
-      final playlistYtId = _tfController.text.split('list=')[1];
+      final playlistYtId = Uri.parse(_tfController.text).queryParameters['list'];
       final playlist = await yt.playlists.get(playlistYtId);
       if (playlist.author.isNotEmpty) this.playlist = playlist;
       yt.close();

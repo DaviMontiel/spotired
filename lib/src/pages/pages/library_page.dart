@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:spotired/src/controllers/access_controller.dart';
+import 'package:spotired/src/controllers/app_controller.dart';
 import 'package:spotired/src/controllers/playlist_controller.dart';
 import 'package:spotired/src/data/models/playlist/playlist.dart';
 import 'package:spotired/src/pages/data/constants.dart';
 import 'package:spotired/src/pages/data/providers/navitation_provider.dart';
 import 'package:spotired/src/pages/pages/library/playlist_page.dart';
 import 'package:spotired/src/shared/widgets/modal_bottom_menu.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../controllers/video_controller.dart';
 
 class LibraryPage extends StatefulWidget {
   const LibraryPage({super.key});
@@ -95,13 +98,35 @@ class _LibraryPageState extends State<LibraryPage> {
                     ),
                   ],
                 ),
-                GestureDetector(
-                  onTap: _showAddBtnOptions,
-                  child: const Icon(
-                    Icons.add,
-                    color: Constants.tertiaryColor,
-                    size: 40,
-                  ),
+                Row(
+                  children: [
+                    ValueListenableBuilder<bool>(
+                      valueListenable: appController.haveUpdate,
+                      builder: (context, haveUpdate, child) {
+                        if (!haveUpdate) return const SizedBox();
+
+                        return GestureDetector(
+                          onTap: _onClickUpdateBtn,
+                          child: const Icon(
+                            Icons.file_download_rounded,
+                            color: Colors.green,
+                            size: 35,
+                          ),
+                        );
+                      }
+                    ),
+
+                    const SizedBox( width: 10 ),
+
+                    GestureDetector(
+                      onTap: _showAddBtnOptions,
+                      child: const Icon(
+                        Icons.add,
+                        color: Constants.tertiaryColor,
+                        size: 40,
+                      ),
+                    ),
+                  ],
                 )
               ],
             ),
@@ -158,7 +183,9 @@ class _LibraryPageState extends State<LibraryPage> {
           itemBuilder: (context, playlistIndex) {
             return Padding(
               padding: const EdgeInsets.only(bottom: 20),
-              child: _playlistRow(playlistController.playlists.values.elementAt(playlistIndex)),
+              child: _playlistRow(playlistController.playlists.values.elementAt(
+                playlistController.playlists.length -playlistIndex -1
+              )),
             );
           },
         ),
@@ -213,12 +240,26 @@ class _LibraryPageState extends State<LibraryPage> {
                     width: 100,
                     height: double.infinity,
                     color: const Color.fromRGBO(35, 35, 35, 1),
-                    child: const Center(
-                      child: Icon(
-                        Icons.folder_outlined,
-                        size: 35,
-                        color: Color.fromRGBO(125, 125, 125, 1),
-                      ),
+                    child: Center(
+                      child: playlist.videos.isEmpty
+                        ? const Icon(
+                            Icons.folder_outlined,
+                            size: 35,
+                            color: Color.fromRGBO(125, 125, 125, 1),
+                          )
+                        : Stack(
+                            children: [
+                              Positioned(
+                                top: -12,
+                                bottom: -12,
+                                right: -12.5,
+                                child: Image.network(
+                                  videoController.construyeVideoThumbnail(videoController.getVideoByUrl(playlist.videos[0])!.thumbnail),
+                                  fit: BoxFit.scaleDown,
+                                ),
+                              ),
+                            ],
+                          ),
                     ),
                   ),
                   const SizedBox(width: 15),
@@ -265,6 +306,13 @@ class _LibraryPageState extends State<LibraryPage> {
 
   void _openPlaylist(int playlistId) {
     navigationProvider.changeCurrentPage(context, PlaylistPage(playlistId: playlistId));
+  }
+
+  void _onClickUpdateBtn() {
+    launchUrl(
+      Uri.parse(appController.appSettings!.apkUrl),
+      mode: LaunchMode.externalApplication,
+    );
   }
 
   void _showAddBtnOptions() {

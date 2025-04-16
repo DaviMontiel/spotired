@@ -28,7 +28,8 @@ android {
 
     applicationVariants.all { variant ->
         variant.outputs.all {
-            outputFileName = "Spotired.apk"
+            def versionName = variant.versionName
+            outputFileName = "Spotired-v${versionName}.apk"
         }
     }
 

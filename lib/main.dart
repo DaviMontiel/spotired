@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:spotired/src/app.dart';
 import 'package:spotired/src/controllers/access_controller.dart';
+import 'package:spotired/src/controllers/app_controller.dart';
 import 'package:spotired/src/controllers/playlist_controller.dart';
 import 'package:spotired/src/controllers/video_controller.dart';
 import 'package:just_audio_background/just_audio_background.dart';
@@ -22,6 +23,7 @@ void main() async {
     androidNotificationOngoing: true,
   );
 
+  await appController.init();
   await accessController.init();
   await playlistController.init();
   await videoController.init();

@@ -159,7 +159,9 @@ class _AddVideoPageState extends State<AddVideoPage> {
           itemBuilder: (context, playlistIndex) {
             return Padding(
               padding: const EdgeInsets.only(bottom: 20),
-              child: _playlistRow(playlistController.playlists.values.elementAt(playlistIndex)),
+              child: _playlistRow(playlistController.playlists.values.elementAt(
+                playlistController.playlists.length -playlistIndex -1
+              )),
             );
           },
         ),
@@ -223,50 +225,71 @@ class _AddVideoPageState extends State<AddVideoPage> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 100,
-                        height: double.infinity,
-                        color: const Color.fromRGBO(35, 35, 35, 1),
-                        child: const Center(
-                          child: Icon(
-                            Icons.folder_outlined,
-                            size: 35,
-                            color: Color.fromRGBO(125, 125, 125, 1),
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 100,
+                          height: double.infinity,
+                          color: const Color.fromRGBO(35, 35, 35, 1),
+                          child: Center(
+                            child: playlist.videos.isEmpty
+                              ? const Icon(
+                                  Icons.folder_outlined,
+                                  size: 35,
+                                  color: Color.fromRGBO(125, 125, 125, 1),
+                                )
+                              : Stack(
+                                  children: [
+                                    Positioned(
+                                      top: -12,
+                                      bottom: -12,
+                                      right: -12,
+                                      // left: 0,
+                                      child: Image.network(
+                                        videoController.construyeVideoThumbnail(videoController.getVideoByUrl(playlist.videos[0])!.thumbnail),
+                                        fit: BoxFit.scaleDown,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 15),
-                      Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // PLAYLIST TITLE
-                          Text(
-                            playlist.name,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              color: Constants.tertiaryColor,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
+                        const SizedBox(width: 15),
+                        Expanded(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // PLAYLIST TITLE
+                              Text(
+                                playlist.name,
+                                textAlign: TextAlign.center,
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                                style: const TextStyle(
+                                  color: Constants.tertiaryColor,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                          
+                              const SizedBox(height: 2),
+                          
+                              // SIZE
+                              Text(
+                                'Lista • ${playlist.videos.length} canciones',
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  color: Constants.tertiaryColor,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
                           ),
-
-                          const SizedBox(height: 2),
-
-                          // SIZE
-                          Text(
-                            'Lista • ${playlist.videos.length} canciones',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              color: Constants.tertiaryColor,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                        ),
+                      ],
+                    ),
                   ),
 
                   Icon(

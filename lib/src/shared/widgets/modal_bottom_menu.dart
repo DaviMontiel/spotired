@@ -216,8 +216,10 @@ class ModalBottomMenu {
                                 child: Stack(
                                   children: [
                                     Positioned(
-                                      top: -8,
-                                      bottom: -8,
+                                      top: -12,
+                                      bottom: -12,
+                                      left: -15,
+                                      right: -15,
                                       child: Image.network(videoController.construyeVideoThumbnail(videoSong.thumbnail)),
                                     )
                                   ],

@@ -94,8 +94,14 @@ class _SearchPageState extends State<SearchPage> {
       child: Scaffold(
         body: Stack(
           children: [
-            WebViewWidget(
-              controller: _controller,
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: -60,
+              child: WebViewWidget(
+                controller: _controller,
+              ),
             ),
             AnimatedPositioned(
               duration: const Duration(milliseconds: 500),

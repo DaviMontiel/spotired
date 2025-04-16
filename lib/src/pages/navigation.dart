@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:spotired/src/controllers/app_controller.dart';
 import 'package:spotired/src/controllers/video_controller.dart';
 import 'package:spotired/src/data/models/video/enums/video_song_status.dart';
 import 'package:spotired/src/data/models/video/video_song.dart';
@@ -13,6 +14,15 @@ class Navigation extends StatefulWidget {
 }
 
 class _NavigationState extends State<Navigation> {
+
+  @override
+  void initState() {
+    // LOAD APP-SETTINGS
+    appController.load();
+
+    super.initState();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
