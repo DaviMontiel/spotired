@@ -5,6 +5,7 @@ import 'dart:isolate';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
+import 'package:palette_generator/palette_generator.dart';
 import 'package:spotired/src/controllers/playlist_controller.dart';
 import 'package:spotired/src/data/models/shared_preferences/enums/share_preference_values.enum.dart';
 import 'package:spotired/src/data/models/video/enums/video_song_status.dart';
@@ -24,6 +25,7 @@ class VideoController with ChangeNotifier {
   ConcatenatingAudioSource playlistSource = ConcatenatingAudioSource(children: []);
   List<String> _pendingVideos = [];
   final ValueNotifier<VideoSong?> currentVideo = ValueNotifier<VideoSong?>(null);
+  final ValueNotifier<Color> currentVideoColor = ValueNotifier<Color>(Colors.black);
   final ValueNotifier<int> currentPosition = ValueNotifier<int>(0);
   final ValueNotifier<VideoSongStatus> videoSongStatus = ValueNotifier<VideoSongStatus>(VideoSongStatus.stopped);
   final AudioPlayer audioPlayer = AudioPlayer();
@@ -315,9 +317,10 @@ class VideoController with ChangeNotifier {
   }
 
   Future<void> _prepareCurrentVideo() async {
-    await Future.delayed(const Duration(milliseconds: 1500));
+    await Future.delayed(const Duration(milliseconds: 500));
 
     // GET SAVED CURRENT-VIDEO
+    final savedVideoColor = await dataService.get(SharePreferenceValues.currentVideoColor);
     final savedPlaylistId = await dataService.getInt(SharePreferenceValues.currentPlaylistId);
     final savedIsPlaylistSequential = await dataService.getBool(SharePreferenceValues.savedIsPlaylistSequential);
     final savedVideoSong = await _getSavedCurrentVideo();
@@ -327,6 +330,18 @@ class VideoController with ChangeNotifier {
       playlistController.setCurrentPlaylist(savedPlaylistId);
     }
 
+    // SET SAVED VIDEO COLOR
+    if (savedVideoColor != null) {
+      List<String> splitedColor = savedVideoColor.split('-');
+      int r = int.parse(splitedColor[0]);
+      int g = int.parse(splitedColor[1]);
+      int b = int.parse(splitedColor[2]);
+      Color color = Color.fromRGBO(r, g, b, 1);
+
+      currentVideoColor.value = color;
+    }
+
+    // START VIDEO
     if (savedVideoSong != null) {
       startVideoAudio(
         savedVideoSong.url,
@@ -359,12 +374,29 @@ class VideoController with ChangeNotifier {
       print('--- ${video.title}');
 
       await _saveCurrentVideo(video);
+      await _updatePalette();
     });
   }
 
   Future<void> _saveCurrentVideo(VideoSong videoSong) async {
     final str = json.encode(videoSong.toMap());
     await dataService.set(SharePreferenceValues.currentVideo, str);
+  }
+
+  Future<void> _updatePalette() async {
+    // GET COLOR
+    final PaletteGenerator paletteGenerator =
+        await PaletteGenerator.fromImageProvider(
+      NetworkImage(construyeVideoThumbnail(currentVideo.value!.thumbnail)),
+      size: const Size(200, 100),
+    );
+
+    // SET COLOR
+    final color = paletteGenerator.dominantColor?.color ?? Colors.grey;
+    currentVideoColor.value = color;
+
+    // SAVE COLOR
+    await dataService.set(SharePreferenceValues.currentVideoColor, '${color.red}-${color.green}-${color.blue}');
   }
 
   @override
