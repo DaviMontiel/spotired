@@ -53,6 +53,9 @@ class VideoController with ChangeNotifier {
     });
 
     _videos = videos;
+
+    // CURRENT-VIDEO
+    _prepareCurrentVideo();
   }
 
   VideoSong? getVideoByUrl(String url) {
@@ -107,7 +110,14 @@ class VideoController with ChangeNotifier {
     return 'https://img.youtube.com/vi/$file';
   }
 
-  void startVideoAudio(String videoUrl, { bool selected = false }) async {
+  Future<void> startVideoAudio(
+    String videoUrl,
+    {
+      bool selected = false,
+      bool play = true,
+      bool prepareNextVideo = true
+    }
+  ) async {
     _sequenceStateStream?.cancel();
     _audioPlayerSubscription?.cancel();
     _currentIndexStream?.cancel();
@@ -117,6 +127,8 @@ class VideoController with ChangeNotifier {
     _lastAudioPlayerIndex = -1;
     _normalSecuence = selected;
     _error = false;
+
+    await dataService.setBool(SharePreferenceValues.savedIsPlaylistSequential, selected);
 
     // STOP AUDIO
     audioPlayer.stop();
@@ -133,7 +145,6 @@ class VideoController with ChangeNotifier {
 
     if (videoToPrepare != videoUrl) return;
     currentVideo.value = videoSong;
-    print('---- REPRODUCE [$videoUrl] ${videoSong.title}');
 
     // Si es la primera canción, configuramos el reproductor
     playlistSource.add(audioSource);
@@ -158,7 +169,7 @@ class VideoController with ChangeNotifier {
       // GET VIDEO-SONG
       currentVideo.value = getVideoByUrl(nextAudioSource.tag.id);
 
-      if (_lastAudioPlayerIndex < index ) {
+      if (prepareNextVideo && _lastAudioPlayerIndex < index ) {
         _lastAudioPlayerIndex = index;
         // PREPARE NEXT VIDEO
         _prepareNextVideo(selected);
@@ -174,7 +185,8 @@ class VideoController with ChangeNotifier {
     });
 
     isChangingSong = false;
-    if (currentVideo.value?.url == videoSong.url) audioPlayer.play();
+    if (!play) videoSongStatus.value = VideoSongStatus.paused;
+    if (play && currentVideo.value?.url == videoSong.url) audioPlayer.play();
   }
 
   void togglePlayPause() {
@@ -300,6 +312,59 @@ class VideoController with ChangeNotifier {
         yt.close();
       }
     });
+  }
+
+  Future<void> _prepareCurrentVideo() async {
+    await Future.delayed(const Duration(milliseconds: 1500));
+
+    // GET SAVED CURRENT-VIDEO
+    final savedPlaylistId = await dataService.getInt(SharePreferenceValues.currentPlaylistId);
+    final savedIsPlaylistSequential = await dataService.getBool(SharePreferenceValues.savedIsPlaylistSequential);
+    final savedVideoSong = await _getSavedCurrentVideo();
+
+    // PREPARE PLAYLIST
+    if (savedPlaylistId != null) {
+      playlistController.setCurrentPlaylist(savedPlaylistId);
+    }
+
+    if (savedVideoSong != null) {
+      startVideoAudio(
+        savedVideoSong.url,
+        play: false,
+        selected: savedIsPlaylistSequential!,
+        prepareNextVideo: savedPlaylistId != null,
+      );
+    }
+
+    _loadCurrentVideoListener();
+  }
+
+  Future<VideoSong?> _getSavedCurrentVideo() async {
+    // GET STR
+    final str = await dataService.get(SharePreferenceValues.currentVideo);
+    if (str == null) return null;
+
+    // TO OBJ
+    final Map<String, dynamic> jsonMap = json.decode(str);
+    final videoSong = VideoSong.fromMap(jsonMap);
+
+    return videoSong;
+  }
+
+  void _loadCurrentVideoListener() {
+    currentVideo.addListener(() async {
+      final video = currentVideo.value;
+      if (video == null) return;
+
+      print('--- ${video.title}');
+
+      await _saveCurrentVideo(video);
+    });
+  }
+
+  Future<void> _saveCurrentVideo(VideoSong videoSong) async {
+    final str = json.encode(videoSong.toMap());
+    await dataService.set(SharePreferenceValues.currentVideo, str);
   }
 
   @override

@@ -144,6 +144,7 @@ class PlaylistController with ChangeNotifier {
 
   void setCurrentPlaylist(int id) {
     _currentPlaylistPlayingId = id;
+    dataService.setInt(SharePreferenceValues.currentPlaylistId, id);
   }
 
   Future<void> fetchYouTubePlaylistWithoutAPIKey(String playlistYtId) async {

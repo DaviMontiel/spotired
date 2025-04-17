@@ -9,8 +9,28 @@ class DataService {
     await prefs.setString(key.value, data);
   }
 
+  Future<void> setInt(SharePreferenceValues key, int data) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(key.value, data);
+  }
+
+  Future<void> setBool(SharePreferenceValues key, bool data) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(key.value, data);
+  }
+
   Future<String?> get(SharePreferenceValues key) async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(key.value);
+  }
+
+  Future<int?> getInt(SharePreferenceValues key) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(key.value);
+  }
+
+  Future<bool?> getBool(SharePreferenceValues key) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(key.value);
   }
 }

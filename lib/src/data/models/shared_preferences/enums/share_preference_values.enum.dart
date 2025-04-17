@@ -1,6 +1,14 @@
 enum SharePreferenceValues {
-  appSettings('app-settings'),
+  // APP
   accessKey('access-key'),
+  appSettings('app-settings'),
+
+  // PLAYBACK
+  currentPlaylistId('current-playlist-id'),
+  savedIsPlaylistSequential('saved-is-playlist-sequential'),
+  currentVideo('current-video'),
+
+  // DATA
   playlists('playlists'),
   videos('videos');
 
