@@ -33,4 +33,9 @@ class DataService {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(key.value);
   }
+
+  Future<bool?> clear(SharePreferenceValues key) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.remove(key.value);
+  }
 }

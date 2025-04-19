@@ -16,8 +16,8 @@ class PlaylistController with ChangeNotifier {
   Map<int, Playlist> get playlists => _playlists;
 
   // STATUS
-  int _currentPlaylistPlayingId = -1;
-  int get currentPlaylistPlayingId => _currentPlaylistPlayingId;
+  int? _currentPlaylistPlayingId;
+  int? get currentPlaylistPlayingId => _currentPlaylistPlayingId;
 
   init() async {
     // GET SAVED PLAYLISTS
@@ -142,9 +142,13 @@ class PlaylistController with ChangeNotifier {
     await dataService.set(SharePreferenceValues.playlists, jsonString);
   }
 
-  void setCurrentPlaylist(int id) {
+  void setCurrentPlaylist(int? id) {
     _currentPlaylistPlayingId = id;
-    dataService.setInt(SharePreferenceValues.currentPlaylistId, id);
+    if (id != null) {
+      dataService.setInt(SharePreferenceValues.currentPlaylistId, id);
+    } else {
+      dataService.clear(SharePreferenceValues.currentPlaylistId);
+    }
   }
 
   Future<void> fetchYouTubePlaylistWithoutAPIKey(String playlistYtId) async {

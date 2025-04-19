@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:spotired/src/controllers/playlist_controller.dart';
+import 'package:spotired/src/controllers/video_controller.dart';
+import 'package:spotired/src/data/models/video/video_song.dart';
 import 'package:spotired/src/pages/data/constants.dart';
 import 'package:spotired/src/pages/pages/library/add_video_page.dart';
 
@@ -108,33 +111,71 @@ class _SearchPageState extends State<SearchPage> {
               curve: Curves.easeInOut,
               right: _isShowingVideo ? 10 : -140,
               bottom: 130,
-              child: ElevatedButton(
-                onPressed: () {
-                  // SAVE IN PLAYLIST
-                  _saveVideoToPlaylist();
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Constants.primaryColor,
-                  foregroundColor: Colors.black,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 30, vertical: 12
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  GestureDetector(
+                    onTap: _onClickPlayBtn,
+                    child: Container(
+                      width: 50,
+                      height: 50,
+                      decoration: const BoxDecoration(
+                        color: Constants.primaryColor,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.play_arrow, color: Colors.black, size: 35),
+                    ),
                   ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
+              
+                  const SizedBox( height: 10 ),
+              
+                  ElevatedButton(
+                    onPressed: () {
+                      // SAVE IN PLAYLIST
+                      _saveVideoToPlaylist();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Constants.primaryColor,
+                      foregroundColor: Colors.black,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 30, vertical: 12
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                    ),
+                    child: const Text(
+                      'Guardar',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
-                ),
-                child: const Text(
-                  'Guardar',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                ],
               ),
             ),
           ],
         )
       ),
+    );
+  }
+
+  void _onClickPlayBtn() {
+    final videoId = _video!.url.split('v=')[1];
+    VideoSong videoSong = VideoSong(
+      url: videoId,
+      title: _video!.title,
+      author: _video!.author,
+      thumbnail: videoController.getVideoThumbnailFromYTUrl(_video!.url).split('vi/')[1],
+      duration: _video!.duration!.inSeconds,
+    );
+    videoController.addVideoSong(videoSong);
+
+    playlistController.setCurrentPlaylist(null);
+    videoController.startVideoAudio(
+      videoId,
+      prepareNextVideo: false,
     );
   }
 }
