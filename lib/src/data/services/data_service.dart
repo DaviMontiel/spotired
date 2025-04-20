@@ -19,6 +19,11 @@ class DataService {
     await prefs.setBool(key.value, data);
   }
 
+  Future<void> setStringList(SharePreferenceValues key, List<String> data) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(key.value, data);
+  }
+
   Future<String?> get(SharePreferenceValues key) async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(key.value);
@@ -32,6 +37,11 @@ class DataService {
   Future<bool?> getBool(SharePreferenceValues key) async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(key.value);
+  }
+
+  Future<List<String>?> getStringList(SharePreferenceValues key) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getStringList(key.value);
   }
 
   Future<bool?> clear(SharePreferenceValues key) async {

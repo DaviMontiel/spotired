@@ -174,6 +174,9 @@ class VideoController with ChangeNotifier {
       // GET VIDEO-SONG
       currentVideo.value = getVideoByUrl(nextAudioSource.tag.id);
 
+      // SAVE PENDING-VIDEOS
+      dataService.setStringList(SharePreferenceValues.pendingVideos, [..._pendingVideos]);
+
       if (prepareNextVideo && _lastAudioPlayerIndex < index ) {
         _lastAudioPlayerIndex = index;
         // PREPARE NEXT VIDEO
@@ -232,6 +235,9 @@ class VideoController with ChangeNotifier {
     if (_pendingVideos.isEmpty) {
       MiPlayList.Playlist playlist = playlistController.playlists[playlistController.currentPlaylistPlayingId]!;
       _pendingVideos = List.from(playlist.videos);
+
+      // SAVE PENDING-VIDEOS
+      dataService.setStringList(SharePreferenceValues.pendingVideos, [..._pendingVideos]);
     }
 
     if (_pendingVideos.isEmpty) return null;
@@ -347,6 +353,11 @@ class VideoController with ChangeNotifier {
     // PREPARE PLAYLIST
     if (savedPlaylistId != null) {
       playlistController.setCurrentPlaylist(savedPlaylistId);
+
+      if (savedIsPlaylistSequential == false) {
+        final savedPendingVideos = await dataService.getStringList(SharePreferenceValues.pendingVideos);
+        _pendingVideos = savedPendingVideos ?? [];
+      }
     }
 
     // SET SAVED VIDEO COLOR

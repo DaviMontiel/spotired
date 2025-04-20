@@ -8,6 +8,7 @@ enum SharePreferenceValues {
   savedIsPlaylistSequential('saved-is-playlist-sequential'),
   currentVideoColor('current-video-color'),
   currentVideo('current-video'),
+  pendingVideos('pending-videos'),
 
   // DATA
   playlists('playlists'),
