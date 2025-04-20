@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:spotired/src/controllers/playlist_controller.dart';
 import 'package:spotired/src/controllers/video_controller.dart';
 import 'package:spotired/src/data/models/video/video_song.dart';
 import 'package:spotired/src/pages/data/constants.dart';
@@ -9,6 +8,8 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
 class SearchPage extends StatefulWidget {
+  const SearchPage({super.key});
+
   @override
   _SearchPageState createState() => _SearchPageState();
 }
@@ -16,7 +17,7 @@ class SearchPage extends StatefulWidget {
 class _SearchPageState extends State<SearchPage> {
   late final WebViewController _controller;
   bool _isShowingVideo = false;
-  Video? _video = null;
+  Video? _video;
 
   @override
   void initState() {
@@ -161,7 +162,8 @@ class _SearchPageState extends State<SearchPage> {
     );
   }
 
-  void _onClickPlayBtn() {
+  void _onClickPlayBtn() async {
+    // CREATE VIDEO-SONG
     final videoId = _video!.url.split('v=')[1];
     VideoSong videoSong = VideoSong(
       url: videoId,
@@ -170,9 +172,11 @@ class _SearchPageState extends State<SearchPage> {
       thumbnail: videoController.getVideoThumbnailFromYTUrl(_video!.url).split('vi/')[1],
       duration: _video!.duration!.inSeconds,
     );
-    videoController.addVideoSong(videoSong);
 
-    playlistController.setCurrentPlaylist(null);
+    // SAVE
+    await videoController.saveOneTimeVideoSong(videoSong);
+
+    // START
     videoController.startVideoAudio(
       videoId,
       prepareNextVideo: false,

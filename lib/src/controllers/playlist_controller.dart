@@ -82,12 +82,12 @@ class PlaylistController with ChangeNotifier {
     return playlistId;
   }
 
-  void removePlaylist(int playlistid) {
+  Future<void> removePlaylist(int playlistid) async {
     // REMOVE VIDEO-SONGS
     final videosCopy = List<String>.from(_playlists[playlistid]!.videos);
     for (final videoUrl in videosCopy) {
       removeVideoOfPlaylist(playlistid, videoUrl);
-      videoController.removePlaylistOfVideoSong(videoUrl, playlistid);
+      await videoController.removePlaylistOfVideoSong(videoUrl, playlistid);
     }
 
     // REMOVE PLAYLIST
@@ -122,12 +122,12 @@ class PlaylistController with ChangeNotifier {
     savePlaylists();
   }
 
-  void removeVideoOfPlaylist(int playlistid, String url) {
+  Future<void> removeVideoOfPlaylist(int playlistid, String url) async {
     // GET PLAYLIST
     final playlist = _playlists[playlistid]!;
 
     // REMOVE
-    videoController.removePlaylistOfVideoSong(url, playlistid);
+    await videoController.removePlaylistOfVideoSong(url, playlistid);
     playlist.videos.remove(url);
 
     notifyListeners();

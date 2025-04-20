@@ -65,6 +65,8 @@ class VideoController with ChangeNotifier {
   }
 
   void addVideoSong(VideoSong video) {
+    if (_videos.containsKey(video.url)) return;
+
     _videos[video.url] = video;
     notifyListeners();
 
@@ -78,7 +80,7 @@ class VideoController with ChangeNotifier {
     await dataService.set(SharePreferenceValues.videos, jsonString);
   }
 
-  void removePlaylistOfVideoSong(String url, int playlistId) {
+  Future<void> removePlaylistOfVideoSong(String url, int playlistId) async {
     VideoSong? videoSong = getVideoByUrl(url);
     if (videoSong == null) return;
 
@@ -86,7 +88,8 @@ class VideoController with ChangeNotifier {
     videoSong.playlists.remove(playlistId);
 
     // REMOVE VIDEO-SONG
-    if (videoSong.playlists.isEmpty) {
+    final VideoSong? savedVideoSong = await _getSavedCurrentVideo();
+    if (videoSong.playlists.isEmpty && savedVideoSong?.url != url) {
       _videos.remove(videoSong.url);
     }
 
@@ -207,6 +210,22 @@ class VideoController with ChangeNotifier {
 
   bool hasFinishedCurrentVideoSong() {
     return currentPosition.value + 3 >= currentVideo.value!.duration;
+  }
+
+  Future<void> saveOneTimeVideoSong(VideoSong videoSong) async {
+    // REMOVE LAST SAVED
+    VideoSong? savedVideoSong = await _getSavedCurrentVideo();
+    if (savedVideoSong != null) {
+      final videoSong = getVideoByUrl(savedVideoSong.url);
+
+      if (videoSong!.playlists.isEmpty) {
+        _videos.remove(videoSong.url);
+      }
+    }
+
+    // ADD
+    addVideoSong(videoSong);
+    playlistController.setCurrentPlaylist(null);
   }
 
   String? _getRandomVideo() {
