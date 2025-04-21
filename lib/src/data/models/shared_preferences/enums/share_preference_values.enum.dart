@@ -6,6 +6,7 @@ enum SharePreferenceValues {
   // PLAYBACK
   currentPlaylistId('current-playlist-id'),
   savedIsPlaylistSequential('saved-is-playlist-sequential'),
+  currentVideoSecond('current-video-second'),
   currentVideoColor('current-video-color'),
   currentVideo('current-video'),
   pendingVideos('pending-videos'),

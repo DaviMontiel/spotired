@@ -120,9 +120,16 @@ class VideoController with ChangeNotifier {
     {
       bool selected = false,
       bool play = true,
+      int? startSecond,
       bool prepareNextVideo = true
     }
   ) async {
+    // CHECK IF WE ARE STARTING A DIFFERENT VIDEO
+    final lastVideoSong = await _getSavedCurrentVideo();
+    if (lastVideoSong != null && lastVideoSong.url != videoUrl) {
+      await dataService.clear(SharePreferenceValues.currentVideoSecond);
+    }
+
     _sequenceStateStream?.cancel();
     _audioPlayerSubscription?.cancel();
     _currentIndexStream?.cancel();
@@ -143,6 +150,7 @@ class VideoController with ChangeNotifier {
     currentVideo.value = getVideoByUrl(videoUrl);
     final videoSong = currentVideo.value!;
 
+    currentPosition.value = startSecond ?? 0;
     videoSongStatus.value = VideoSongStatus.loading;
 
     // GET AUDIO SOURCE OF VIDEO-SONG
@@ -184,15 +192,24 @@ class VideoController with ChangeNotifier {
       }
     });
 
-    audioPlayer.positionStream.listen((pos) {
+    audioPlayer.positionStream.listen((pos) async {
       if (isChangingSong) {
         currentPosition.value = 0;
         return;
       }
       currentPosition.value = pos.inSeconds;
+
+      // SAVE CURRENT SECOND
+      await dataService.setInt(SharePreferenceValues.currentVideoSecond, pos.inSeconds);
     });
 
     isChangingSong = false;
+
+    // SET SECOND TO AUDIO
+    if (startSecond != null) {
+      await audioPlayer.seek(Duration(seconds: startSecond));
+    }
+
     if (!play) videoSongStatus.value = VideoSongStatus.paused;
     if (play && currentVideo.value?.url == videoSong.url) audioPlayer.play();
   }
@@ -345,6 +362,7 @@ class VideoController with ChangeNotifier {
     await Future.delayed(const Duration(milliseconds: 500));
 
     // GET SAVED CURRENT-VIDEO
+    final savedVideoSecond = await dataService.getInt(SharePreferenceValues.currentVideoSecond);
     final savedVideoColor = await dataService.get(SharePreferenceValues.currentVideoColor);
     final savedPlaylistId = await dataService.getInt(SharePreferenceValues.currentPlaylistId);
     final savedIsPlaylistSequential = await dataService.getBool(SharePreferenceValues.savedIsPlaylistSequential);
@@ -376,6 +394,7 @@ class VideoController with ChangeNotifier {
       startVideoAudio(
         savedVideoSong.url,
         play: false,
+        startSecond: savedVideoSecond,
         selected: savedIsPlaylistSequential!,
         prepareNextVideo: savedPlaylistId != null,
       );
