@@ -1,12 +1,16 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import 'package:spotired/src/controllers/app_controller.dart';
 import 'package:spotired/src/controllers/video_controller.dart';
 import 'package:spotired/src/data/models/video/enums/video_song_status.dart';
 import 'package:spotired/src/data/models/video/video_song.dart';
 import 'package:spotired/src/pages/data/enums/navigation_pages.enum.dart';
 import 'package:spotired/src/pages/data/providers/navitation_provider.dart';
+import 'package:spotired/src/pages/pages/library/add_video_page.dart';
+import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
 class Navigation extends StatefulWidget {
   const Navigation({super.key});
@@ -17,10 +21,33 @@ class Navigation extends StatefulWidget {
 
 class _NavigationState extends State<Navigation> {
 
+  late StreamSubscription _intentSub;
+
   @override
   void initState() {
     // LOAD APP-SETTINGS
     appController.load();
+    
+    // LISTEN INTENTS WHILE THE APP IS IN THE MEMORY
+    _intentSub = ReceiveSharingIntent.instance.getMediaStream().listen((value) async {
+      if (value.isEmpty) return;
+
+      _onReceivedYoutubeUrlVideo(value.first.path);
+
+    }, onError: (err) {
+      print("getIntentDataStream error: $err");
+    });
+
+    // Get the media sharing coming from outside the app while the app is closed.
+    ReceiveSharingIntent.instance.getInitialMedia().then((value) {
+      setState(() {
+        if (value.isEmpty) return;
+
+        _onReceivedYoutubeUrlVideo(value.first.path);
+
+        ReceiveSharingIntent.instance.reset();
+      });
+    });
 
     super.initState();
   }
@@ -397,6 +424,18 @@ class _NavigationState extends State<Navigation> {
   @override
   void dispose() {
     videoController.dispose();
+    _intentSub.cancel();
     super.dispose();
+  }
+  
+  Future<void> _onReceivedYoutubeUrlVideo(String youtubeUrl) async {
+    // GET YT VIDEO
+    final video = await YoutubeExplode().videos.get(youtubeUrl);
+
+    // OPEN ADD SCREEN
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => AddVideoPage(ytVideo: video)),
+    );
   }
 }

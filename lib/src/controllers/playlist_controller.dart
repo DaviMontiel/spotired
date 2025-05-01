@@ -303,7 +303,9 @@ class PlaylistController with ChangeNotifier {
     double count = 0;
 
     for (int f=0; f<playlist.videos.length; f++) {
-      VideoSong videoSong = videoController.getVideoByUrl(playlist.videos[f])!;
+      VideoSong? videoSong = videoController.getVideoByUrl(playlist.videos[f]);
+      if (videoSong == null) continue;
+
       if (videoSong.downloaded) {
         count += 1;
       }
