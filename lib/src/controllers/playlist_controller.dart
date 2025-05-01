@@ -98,8 +98,7 @@ class PlaylistController with ChangeNotifier {
     // REMOVE VIDEO-SONGS
     final videosCopy = List<String>.from(_playlists[playlistid]!.videos);
     for (final videoUrl in videosCopy) {
-      removeVideoOfPlaylist(playlistid, videoUrl);
-      await videoController.removePlaylistOfVideoSong(videoUrl, playlistid);
+      await removeVideoOfPlaylist(playlistid, videoUrl);
     }
 
     // REMOVE PLAYLIST

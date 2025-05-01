@@ -118,8 +118,6 @@ class VideoController with ChangeNotifier {
     // REMOVE VIDEO-SONG
     final VideoSong? savedVideoSong = await _getSavedCurrentVideo();
     if (videoSong.playlists.isEmpty) {
-      dataService.clearCustom('video-audio-${videoSong.url}');
-
       if (savedVideoSong?.url != url) {
         await removeVideoSong(videoSong.url);
       }
@@ -285,10 +283,10 @@ class VideoController with ChangeNotifier {
   }
 
   Future<void> removeVideoSong(String videoSongUrl) async {
-    _videos.remove(videoSongUrl);
-    _videosImages.remove(videoSongUrl);
     await dataService.clearCustom('video-image-$videoSongUrl');
     await videoController.removeVideoSongAudio(videoSongUrl);
+    _videos.remove(videoSongUrl);
+    _videosImages.remove(videoSongUrl);
   }
 
   Future<Uint8List?> loadImageFromVideoUrl(String videoUrl) async {
@@ -441,31 +439,46 @@ class VideoController with ChangeNotifier {
         audioUrl ??= await _getFinalUrlByYTUrl(videoSong.url);
         if (audioUrl == null) return;
         if (videoSong.downloaded) return;
-        downloadVideosProgress[videoSong.url] = 0;
-
-        // GET AUDIO
-        final request = http.Request('GET', Uri.parse(audioUrl));
-        final response = await request.send();
-        if (response.statusCode != 200) throw Exception('Error en la respuesta del servidor');
-
-        // GET TOTAL BYTES
-        final totalBytes = response.contentLength;
 
         // GET DIR TO SAVE
         final dir = await getApplicationDocumentsDirectory();
         final localPath = '${dir.path}/audio-${videoSong.url}.mp3';
         final audioFile = File(localPath);
 
-        // DELETE IF EXISTS
+        // GET FILE SIZE
+        int downloadedLength = 0;
         if (await audioFile.exists()) {
-          await audioFile.delete();
+          downloadedLength = await audioFile.length();
         }
 
-        // CREATE FILE STREAM
-        final fileStream = audioFile.openWrite();
-        int receivedBytes = 0;
+        // INIT PROGRESS
+        downloadVideosProgress[videoSong.url] = (downloadedLength.toDouble());
+        notifyListeners();
 
-        // LISTENER
+        // Configurar solicitud con Range header si hay datos
+        final request = http.Request('GET', Uri.parse(audioUrl));
+        request.headers['Range'] = 'bytes=$downloadedLength-';
+
+        final response = await request.send();
+        if (response.statusCode != 200 && response.statusCode != 206) {
+          throw Exception('Error en la respuesta del servidor: ${response.statusCode}');
+        }
+
+        // GET TOTAL
+        int? totalBytes;
+        if (response.headers.containsKey('content-range')) {
+          final contentRange = response.headers['content-range'];
+          final totalMatch = RegExp(r'/(\d+)$').firstMatch(contentRange ?? '');
+          if (totalMatch != null) {
+            totalBytes = int.parse(totalMatch.group(1)!);
+          }
+        } else {
+          totalBytes = response.contentLength != null ? response.contentLength! + downloadedLength : null;
+        }
+
+        final fileStream = audioFile.openWrite(mode: FileMode.append);
+        int receivedBytes = downloadedLength;
+
         late StreamSubscription<List<int>> subscription;
         final completer = Completer<void>();
 
@@ -480,9 +493,6 @@ class VideoController with ChangeNotifier {
               downloadVideosProgress.remove(videoSong.url);
               await subscription.cancel();
               await fileStream.close();
-              if (await audioFile.exists()) {
-                await audioFile.delete();
-              }
               completer.completeError(Exception('Descarga cancelada'));
               exit = true;
               return;
@@ -491,15 +501,15 @@ class VideoController with ChangeNotifier {
             fileStream.add(chunk);
             receivedBytes += chunk.length;
 
-            double progress = (receivedBytes / totalBytes!) * 100;
-            downloadVideosProgress[videoSong.url] = progress;
+            if (totalBytes != null) {
+              double progress = (receivedBytes / totalBytes) * 100;
+              downloadVideosProgress[videoSong.url] = progress;
+            }
             notifyListeners();
           },
           onDone: () async {
             await fileStream.close();
-
             await dataService.setCustom('video-audio-${videoSong.url}', audioFile.path);
-
             videoController.downloadVideosProgress.remove(videoSong.url);
             _videos[videoSong.url]!.downloaded = true;
 
@@ -510,9 +520,6 @@ class VideoController with ChangeNotifier {
           onError: (e) async {
             await subscription.cancel();
             await fileStream.close();
-            if (await audioFile.exists()) {
-              await audioFile.delete();
-            }
             completer.completeError(e);
           },
           cancelOnError: true,
@@ -522,6 +529,7 @@ class VideoController with ChangeNotifier {
         exit = true;
       } catch (e) {
         downloadVideosProgress.remove(videoSong.url);
+        await Future.delayed(const Duration(seconds: 3)); // Espera antes de reintentar
       }
     }
   }
