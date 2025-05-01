@@ -9,14 +9,21 @@ import 'package:youtube_explode_dart/youtube_explode_dart.dart' as YT;
 
 class AddVideoPage extends StatefulWidget {
 
-  final YT.Video ytVideo;
+  final YT.Video? ytVideo;
 
-  final String url;
+  late final String url;
 
   AddVideoPage({
     super.key,
-    required this.ytVideo,
-  }): url = ytVideo.url.split('v=')[1];
+    this.ytVideo,
+    String? videoSongUrl,
+  }) {
+    if (ytVideo != null) {
+      url = ytVideo!.url.split('v=')[1];
+    } else {
+      url = videoSongUrl!;
+    }
+  }
 
   @override
   State<AddVideoPage> createState() => _AddVideoPageState();
@@ -94,6 +101,7 @@ class _AddVideoPageState extends State<AddVideoPage> {
               ListenableBuilder(
                 listenable: playlistController,
                 builder: (BuildContext context, Widget? child) {
+                  playlistsChanges = {};
                   return _showPlaylistsBody();
                 }
               ),
@@ -325,13 +333,19 @@ class _AddVideoPageState extends State<AddVideoPage> {
   }
 
   void _saveVideoToPlaylist(int playlistId) async {
-    VideoSong video = VideoSong(
-      url: widget.ytVideo.url.split('v=')[1],
-      title: widget.ytVideo.title,
-      author: widget.ytVideo.author,
-      thumbnail: videoController.getVideoThumbnailFromYTUrl(widget.ytVideo.url).split('vi/')[1],
-      duration: widget.ytVideo.duration!.inSeconds,
-    );
+    VideoSong video;
+    
+    if (widget.ytVideo != null) {
+      video = VideoSong(
+        url: widget.ytVideo!.url.split('v=')[1],
+        title: widget.ytVideo!.title,
+        author: widget.ytVideo!.author,
+        thumbnail: videoController.getVideoThumbnailFromYTUrl(widget.ytVideo!.url).split('vi/')[1],
+        duration: widget.ytVideo!.duration!.inSeconds,
+      );
+    } else {
+      video = videoController.getVideoByUrl(widget.url)!;
+    }
 
     // ADD SONG
     playlistController.addVideoToPlaylist(playlistId, video);

@@ -1,11 +1,14 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:isolate';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import 'package:palette_generator/palette_generator.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:spotired/src/controllers/playlist_controller.dart';
 import 'package:spotired/src/data/models/shared_preferences/enums/share_preference_values.enum.dart';
 import 'package:spotired/src/data/models/video/enums/video_song_status.dart';
@@ -13,6 +16,7 @@ import 'package:spotired/src/data/models/video/video_song.dart';
 import 'package:spotired/src/data/services/data_service.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 import 'package:spotired/src/data/models/playlist/playlist.dart' as MiPlayList;
+import 'package:http/http.dart' as http;
 
 final videoController = VideoController();
 
@@ -22,6 +26,8 @@ class VideoController with ChangeNotifier {
   Map<String, VideoSong> _videos = {};
 
   // STATUS
+  final Map<String, Uint8List?> _videosImages = {};
+  final Map<String, double?> downloadVideosProgress = {};
   ConcatenatingAudioSource playlistSource = ConcatenatingAudioSource(children: []);
   List<String> _pendingVideos = [];
   final ValueNotifier<VideoSong?> currentVideo = ValueNotifier<VideoSong?>(null);
@@ -64,16 +70,21 @@ class VideoController with ChangeNotifier {
     return _videos[url];
   }
 
+  Uint8List? getVideoImageFromUrl(String url) {
+    return _videosImages[url];
+  }
+
   void addVideoSong(VideoSong video) {
     if (_videos.containsKey(video.url)) return;
 
     _videos[video.url] = video;
+    loadImageFromVideoUrl(video.url);
     notifyListeners();
 
     saveVideoSongs();
   }
 
-  void saveVideoSongs() async {
+  Future<void> saveVideoSongs() async {
     final jsonString = jsonEncode(
       _videos.map((key, value) => MapEntry(key, value.toMap()))
     );
@@ -84,13 +95,34 @@ class VideoController with ChangeNotifier {
     VideoSong? videoSong = getVideoByUrl(url);
     if (videoSong == null) return;
 
+    // QUIT DOWNLOADS COUNT
+    bool otherPlaylistHasVideoWithDownloadActivated = false;
+    for (var videoPlaylistId in videoSong.playlists) {
+      MiPlayList.Playlist playlist = playlistController.playlists[videoPlaylistId]!;
+
+      if (playlist.id != playlistId && playlist.downloadVideos) {
+        otherPlaylistHasVideoWithDownloadActivated = true;
+      }
+    }
+    if (!otherPlaylistHasVideoWithDownloadActivated) {
+      downloadVideosProgress.remove(videoSong.url);
+    }
+
+    if (videoSong.playlists.isNotEmpty) {
+      playlistController.savePlaylists();
+    }
+
     // REMOVE PLAYLIST OF VIDEO-SONG
     videoSong.playlists.remove(playlistId);
 
     // REMOVE VIDEO-SONG
     final VideoSong? savedVideoSong = await _getSavedCurrentVideo();
-    if (videoSong.playlists.isEmpty && savedVideoSong?.url != url) {
-      _videos.remove(videoSong.url);
+    if (videoSong.playlists.isEmpty) {
+      dataService.clearCustom('video-audio-${videoSong.url}');
+
+      if (savedVideoSong?.url != url) {
+        await removeVideoSong(videoSong.url);
+      }
     }
 
     saveVideoSongs();
@@ -155,20 +187,18 @@ class VideoController with ChangeNotifier {
 
     // GET AUDIO SOURCE OF VIDEO-SONG
     final audioSource = await _getAudioSourceFromVideoSong(videoSong);
+    if (audioSource == null) return;
 
     if (videoToPrepare != videoUrl) return;
     currentVideo.value = videoSong;
 
     // Si es la primera canción, configuramos el reproductor
     playlistSource.add(audioSource);
-    await audioPlayer.setAudioSource(playlistSource);
+    await audioPlayer.setAudioSource(playlistSource, preload: false);
 
     //* PREPARE LISTENERS
     // AUDIO STATUS LISTENER
     _audioPlayerSubscription = audioPlayer.playerStateStream.listen((state) {
-      if (state.playing && hasFinishedCurrentVideoSong()) {
-        videoSongStatus.value = VideoSongStatus.stopped;
-      } else
       if (state.playing) {
         videoSongStatus.value = VideoSongStatus.playing;
       } else if (videoSongStatus.value == VideoSongStatus.playing) {
@@ -177,7 +207,9 @@ class VideoController with ChangeNotifier {
     });
 
     _currentIndexStream = audioPlayer.currentIndexStream.listen((index) {
-      ProgressiveAudioSource nextAudioSource = playlistSource.children[index!] as ProgressiveAudioSource;
+      if (index == null) return;
+
+      ProgressiveAudioSource nextAudioSource = playlistSource.children[index] as ProgressiveAudioSource;
 
       // GET VIDEO-SONG
       currentVideo.value = getVideoByUrl(nextAudioSource.tag.id);
@@ -217,8 +249,6 @@ class VideoController with ChangeNotifier {
   void togglePlayPause() {
     if (videoSongStatus.value == VideoSongStatus.playing) {
       audioPlayer.pause();
-    } else if (hasFinishedCurrentVideoSong()) {
-      audioPlayer.seek(const Duration(seconds: 0));
     } else if (videoSongStatus.value == VideoSongStatus.paused && _error) {
       startVideoAudio(currentVideo.value!.url, selected: _normalSecuence);
     } else {
@@ -228,8 +258,14 @@ class VideoController with ChangeNotifier {
     notifyListeners();
   }
 
-  bool hasFinishedCurrentVideoSong() {
-    return currentPosition.value + 3 >= currentVideo.value!.duration;
+  void changeCurrentVideoSongPosition(int second, { bool play = false }) {
+    audioPlayer.seek(Duration(seconds: second));
+
+    if (play) {
+      audioPlayer.play();
+    } else {
+      audioPlayer.pause();
+    }
   }
 
   Future<void> saveOneTimeVideoSong(VideoSong videoSong) async {
@@ -239,13 +275,99 @@ class VideoController with ChangeNotifier {
       final videoSong = getVideoByUrl(savedVideoSong.url);
 
       if (videoSong!.playlists.isEmpty) {
-        _videos.remove(videoSong.url);
+        await removeVideoSong(videoSong.url);
       }
     }
 
     // ADD
     addVideoSong(videoSong);
     playlistController.setCurrentPlaylist(null);
+  }
+
+  Future<void> removeVideoSong(String videoSongUrl) async {
+    _videos.remove(videoSongUrl);
+    _videosImages.remove(videoSongUrl);
+    await dataService.clearCustom('video-image-$videoSongUrl');
+    await videoController.removeVideoSongAudio(videoSongUrl);
+  }
+
+  Future<Uint8List?> loadImageFromVideoUrl(String videoUrl) async {
+    // GET VIDEO-SONG
+    final video = _videos[videoUrl];
+    if (video == null) return null;
+
+    notifyToCurrentVideo() {
+      if (videoUrl == currentVideo.value?.url ) {
+        currentVideo.value = currentVideo.value!.copy();
+      }
+    }
+
+    // GET FROM CACHE
+    if (_videosImages.containsKey(videoUrl)) {
+      final img = _videosImages[videoUrl];
+      if (img != null) notifyListeners();
+      return _videosImages[videoUrl];
+    }
+    _videosImages[videoUrl] = null;
+
+    // GET FROM STORAGE
+    String storageImageKey = 'video-image-$videoUrl';
+    String? storageBase64Image = await dataService.getCustom(storageImageKey);
+    if (storageBase64Image != null) {
+      Uint8List imageBytes = base64Decode(storageBase64Image);
+      _videosImages[videoUrl] = imageBytes;
+
+      notifyToCurrentVideo();
+      notifyListeners();
+
+      return imageBytes;
+    }
+
+    // DOWNLOAD
+    try {
+      final thumbnailUrl = construyeVideoThumbnail(video.thumbnail);
+      final response = await http.get(Uri.parse(thumbnailUrl));
+      if (response.statusCode != 200) throw Exception('Failed to download image');
+
+      // SAVE
+      dataService.setCustom(storageImageKey, base64Encode(response.bodyBytes));
+      _videosImages[videoUrl] = response.bodyBytes;
+
+      notifyToCurrentVideo();
+      notifyListeners();
+
+      return response.bodyBytes;
+    } catch (e) {
+      print('Error converting image to base64: $e');
+    }
+
+    return null;
+  }
+
+  getListFromColor(Color color) {
+    return [ color.red, color.green, color.blue ];
+  }
+
+  Future<void> removeVideoSongAudio(String videoSongUrl) async {
+    // GET VIDEO-SONG
+    VideoSong? videoSong = getVideoByUrl(videoSongUrl);
+    if (videoSong == null) return;
+
+    // REMOVE AUDIO
+    final dir = await getApplicationDocumentsDirectory();
+    final localPath = '${dir.path}/audio-${videoSong.url}.mp3';
+    final audioFile = File(localPath);
+
+    // DELETE IF EXISTS
+    if (await audioFile.exists()) {
+      await audioFile.delete();
+    }
+    await dataService.clearCustom('video-audio-$videoSongUrl');
+
+    videoSong.downloaded = false;
+    await saveVideoSongs();
+
+    notifyListeners();
   }
 
   String? _getRandomVideo() {
@@ -307,32 +429,145 @@ class VideoController with ChangeNotifier {
     }
   }
 
-  _getAudioSourceFromVideoSong(VideoSong videoSong) async {
+  Future<void> downloadVideoSong(VideoSong videoSong) async {
     String? audioUrl;
+    bool exit = false;
+
+    while (!exit) {
+      try {
+        if (downloadVideosProgress[videoSong.url] != null) return;
+
+        // GET VIDEO-URL
+        audioUrl ??= await _getFinalUrlByYTUrl(videoSong.url);
+        if (audioUrl == null) return;
+        if (videoSong.downloaded) return;
+        downloadVideosProgress[videoSong.url] = 0;
+
+        // GET AUDIO
+        final request = http.Request('GET', Uri.parse(audioUrl));
+        final response = await request.send();
+        if (response.statusCode != 200) throw Exception('Error en la respuesta del servidor');
+
+        // GET TOTAL BYTES
+        final totalBytes = response.contentLength;
+
+        // GET DIR TO SAVE
+        final dir = await getApplicationDocumentsDirectory();
+        final localPath = '${dir.path}/audio-${videoSong.url}.mp3';
+        final audioFile = File(localPath);
+
+        // DELETE IF EXISTS
+        if (await audioFile.exists()) {
+          await audioFile.delete();
+        }
+
+        // CREATE FILE STREAM
+        final fileStream = audioFile.openWrite();
+        int receivedBytes = 0;
+
+        // LISTENER
+        late StreamSubscription<List<int>> subscription;
+        final completer = Completer<void>();
+
+        subscription = response.stream.listen(
+          (List<int> chunk) async {
+            bool somePlaylistHasVideoSongWithDownloads = playlistController.containsDownloadedPlaylistWithVideo(videoSong.url);
+            if (
+              !somePlaylistHasVideoSongWithDownloads ||
+              getVideoByUrl(videoSong.url) == null ||
+              !downloadVideosProgress.containsKey(videoSong.url)
+            ) {
+              downloadVideosProgress.remove(videoSong.url);
+              await subscription.cancel();
+              await fileStream.close();
+              if (await audioFile.exists()) {
+                await audioFile.delete();
+              }
+              completer.completeError(Exception('Descarga cancelada'));
+              exit = true;
+              return;
+            }
+
+            fileStream.add(chunk);
+            receivedBytes += chunk.length;
+
+            double progress = (receivedBytes / totalBytes!) * 100;
+            downloadVideosProgress[videoSong.url] = progress;
+            notifyListeners();
+          },
+          onDone: () async {
+            await fileStream.close();
+
+            await dataService.setCustom('video-audio-${videoSong.url}', audioFile.path);
+
+            videoController.downloadVideosProgress.remove(videoSong.url);
+            _videos[videoSong.url]!.downloaded = true;
+
+            saveVideoSongs();
+            notifyListeners();
+            completer.complete();
+          },
+          onError: (e) async {
+            await subscription.cancel();
+            await fileStream.close();
+            if (await audioFile.exists()) {
+              await audioFile.delete();
+            }
+            completer.completeError(e);
+          },
+          cancelOnError: true,
+        );
+
+        await completer.future;
+        exit = true;
+      } catch (e) {
+        downloadVideosProgress.remove(videoSong.url);
+      }
+    }
+  }
+
+  Future<AudioSource?> _getAudioSourceFromVideoSong(VideoSong videoSong) async {
     try {
-      audioUrl = await _getFinalUrlByYTUrl(videoSong.url);
-      if (audioUrl == null) return;
+      // Buscar ruta local del audio guardado
+      String? savedPath = await dataService.getCustom('video-audio-${videoSong.url}');
+
+      if (savedPath != null) {
+        // Usar archivo local
+        return AudioSource.uri(
+          Uri.file(savedPath),
+          tag: MediaItem(
+            id: videoSong.url,
+            title: videoSong.title,
+            artist: videoSong.author,
+          ),
+        );
+      }
+
+      // USE YT STREAM
+      String? audioUrl = await _getFinalUrlByYTUrl(videoSong.url);
+      if (audioUrl == null) return null;
+
+      // CONFIGURE audio_player WITH AudioSource.uri
+      final audioSource = AudioSource.uri(
+        Uri.parse(audioUrl),
+        tag: MediaItem(
+          id: videoSong.url,
+          title: videoSong.title,
+          artist: videoSong.author,
+        ),
+      );
+
+      return audioSource;
     } catch (ex) {
       videoSongStatus.value = VideoSongStatus.paused;
       _error = true;
-      print(ex);
+      return null;
     }
-
-    // CONFIGURE audio_player WITH AudioSource.uri
-    final audioSource = AudioSource.uri(
-      Uri.parse(audioUrl!),
-      tag: MediaItem(
-        id: videoSong.url,
-        title: videoSong.title,
-        artist: videoSong.author,
-      ),
-    );
-
-    return audioSource;
   }
 
   _addVideoSongToPlaylist(VideoSong videoSong) async {
     final audioSource = await _getAudioSourceFromVideoSong(videoSong);
+    if (audioSource == null) return;
 
     while (isChangingSong) {
       await Future.delayed(const Duration(milliseconds: 100));
@@ -420,8 +655,6 @@ class VideoController with ChangeNotifier {
       final video = currentVideo.value;
       if (video == null) return;
 
-      print('--- ${video.title}');
-
       await _saveCurrentVideo(video);
       await _updatePalette();
     });
@@ -433,19 +666,48 @@ class VideoController with ChangeNotifier {
   }
 
   Future<void> _updatePalette() async {
-    // GET COLOR
-    final PaletteGenerator paletteGenerator =
-        await PaletteGenerator.fromImageProvider(
-      NetworkImage(construyeVideoThumbnail(currentVideo.value!.thumbnail)),
-      size: const Size(200, 100),
-    );
+    try {
+      // GET IMG
+      final savedImage = getVideoImageFromUrl(currentVideo.value!.url);
 
-    // SET COLOR
-    final color = paletteGenerator.dominantColor?.color ?? Colors.grey;
-    currentVideoColor.value = color;
+      // CREATE IMAGE PROVIDER
+      final ImageProvider imageProvider = savedImage == null
+        ? NetworkImage(construyeVideoThumbnail(currentVideo.value!.thumbnail))
+        : MemoryImage(savedImage);
 
-    // SAVE COLOR
-    await dataService.set(SharePreferenceValues.currentVideoColor, '${color.red}-${color.green}-${color.blue}');
+      // WAIT UNTIL IMAGE IS LOADED OR FAILS
+      final ImageStream stream = imageProvider.resolve(const ImageConfiguration());
+      final Completer<void> completer = Completer<void>();
+
+      stream.addListener(
+        ImageStreamListener(
+          (ImageInfo info, bool _) {
+            completer.complete();
+          },
+          onError: (dynamic error, StackTrace? stackTrace) {
+            completer.completeError(error, stackTrace);
+          },
+        ),
+      );
+
+      await completer.future;
+
+      // GET COLOR
+      final PaletteGenerator paletteGenerator = await PaletteGenerator.fromImageProvider(
+        imageProvider,
+        size: const Size(200, 100),
+      );
+      final color = paletteGenerator.dominantColor?.color ?? Colors.grey;
+
+      // SET COLOR
+      currentVideoColor.value = color;
+
+      // SAVE COLOR
+      await dataService.set(
+        SharePreferenceValues.currentVideoColor,
+        '${color.red}-${color.green}-${color.blue}',
+      );
+    } catch (e) {}
   }
 
   @override

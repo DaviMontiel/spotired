@@ -5,6 +5,7 @@ class VideoSong {
   String thumbnail;
   int duration;
   List<int> playlists;
+  bool downloaded;
 
   VideoSong({
     required this.url,
@@ -13,6 +14,7 @@ class VideoSong {
     required this.thumbnail,
     required this.duration,
     List<int>? playlists,
+    this.downloaded = false,
   }): playlists = playlists ?? [];
 
   toMap() {
@@ -23,6 +25,7 @@ class VideoSong {
       'thumbnail': thumbnail,
       'duration': duration,
       'playlists': playlists,
+      'downloaded': downloaded,
     };
   }
 
@@ -34,6 +37,12 @@ class VideoSong {
       thumbnail: map['thumbnail'],
       duration: map['duration'],
       playlists: List<int>.from(map['playlists'] ?? []),
+      downloaded: map['downloaded'] ?? false,
     );
+  }
+
+  copy() {
+    final map = toMap();
+    return fromMap(map);
   }
 }

@@ -1,11 +1,15 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:spotired/src/controllers/access_controller.dart';
 import 'package:spotired/src/controllers/app_controller.dart';
 import 'package:spotired/src/controllers/playlist_controller.dart';
 import 'package:spotired/src/data/models/playlist/playlist.dart';
+import 'package:spotired/src/data/models/video/video_song.dart';
 import 'package:spotired/src/pages/data/constants.dart';
 import 'package:spotired/src/pages/data/providers/navitation_provider.dart';
 import 'package:spotired/src/pages/pages/library/playlist_page.dart';
+import 'package:spotired/src/shared/widgets/download_progress_icon.dart';
 import 'package:spotired/src/shared/widgets/modal_bottom_menu.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../controllers/video_controller.dart';
@@ -29,7 +33,7 @@ class _LibraryPageState extends State<LibraryPage> {
                 child: Column(
               children: [
                 _header(),
-                playlistController.playlists.isEmpty
+                playlistController.allowedPlaylists.isEmpty
                     ? _createPlaylistBody()
                     : _showPlaylistsBody(),
               ],
@@ -177,17 +181,22 @@ class _LibraryPageState extends State<LibraryPage> {
     return Expanded(
       child: Padding(
         padding: const EdgeInsets.all(20),
-        child: ListView.builder(
-          padding: const EdgeInsets.only(bottom: 100),
-          itemCount: playlistController.playlists.length,
-          itemBuilder: (context, playlistIndex) {
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 20),
-              child: _playlistRow(playlistController.playlists.values.elementAt(
-                playlistController.playlists.length -playlistIndex -1
-              )),
+        child: ListenableBuilder(
+          listenable: videoController,
+          builder: (BuildContext context, Widget? child) {
+            return ListView.builder(
+              padding: const EdgeInsets.only(bottom: 100),
+              itemCount: playlistController.allowedPlaylists.length,
+              itemBuilder: (context, playlistIndex) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 20),
+                  child: _playlistRow(playlistController.allowedPlaylists.values.elementAt(
+                    playlistController.allowedPlaylists.length -playlistIndex -1
+                  )),
+                );
+              },
             );
-          },
+          }
         ),
       ),
     );
@@ -207,6 +216,21 @@ class _LibraryPageState extends State<LibraryPage> {
         scale = 1;
       });
     }
+
+    Uint8List? cachedImage;
+    VideoSong? firstVideoSong = playlist.videos.isNotEmpty
+      ? videoController.getVideoByUrl(playlist.videos.first)
+      : null;
+    if (firstVideoSong != null) {
+      // IMG
+      cachedImage = videoController.getVideoImageFromUrl(firstVideoSong.url);
+
+      if (cachedImage == null) {
+        videoController.loadImageFromVideoUrl(firstVideoSong.url);
+      }
+    }
+
+    double downloadedVideos = playlistController.getDownloadedVideosOfPlaylistCount(playlist.id);
 
     return StatefulBuilder(builder: (context, setState) {
       return Listener(
@@ -253,10 +277,9 @@ class _LibraryPageState extends State<LibraryPage> {
                                 top: -12,
                                 bottom: -12,
                                 right: -12.5,
-                                child: Image.network(
-                                  videoController.construyeVideoThumbnail(videoController.getVideoByUrl(playlist.videos[0])!.thumbnail),
-                                  fit: BoxFit.scaleDown,
-                                ),
+                                child: cachedImage == null
+                                  ? const SizedBox()
+                                  : Image.memory(cachedImage, fit: BoxFit.scaleDown)
                               ),
                             ],
                           ),
@@ -284,13 +307,37 @@ class _LibraryPageState extends State<LibraryPage> {
                         const SizedBox(height: 2),
                     
                         // SIZE
-                        Text(
-                          'Lista • ${playlist.videos.length} canciones',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: Constants.tertiaryColor,
-                            fontSize: 14,
-                          ),
+                        Row(
+                          children: [
+                            if (playlist.downloadVideos)
+                            Builder(
+                              builder: (context) {
+                                return Row(
+                                  children: [
+                                    DownloadProgressIcon(
+                                      progress: !playlist.downloadVideos
+                                        ? 0
+                                        : downloadedVideos / playlist.videos.length,
+                                      size: 15,
+                                      primaryColor: Colors.red,
+                                      secondaryColor: const Color.fromRGBO(175, 175, 175, 1),
+                                    ),
+
+                                    const SizedBox( width: 5 ),
+                                  ],
+                                );
+                              },
+                            ),
+
+                            Text(
+                              'Lista • ${playlist.videos.length} canciones',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                color: Constants.tertiaryColor,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),

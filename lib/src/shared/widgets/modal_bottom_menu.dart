@@ -1,8 +1,11 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:spotired/src/controllers/playlist_controller.dart';
 import 'package:spotired/src/controllers/video_controller.dart';
 import 'package:spotired/src/data/models/video/video_song.dart';
 import 'package:spotired/src/pages/data/constants.dart';
+import 'package:spotired/src/pages/pages/library/add_video_page.dart';
 import 'package:spotired/src/pages/pages/library/create_playlist_page.dart';
 import 'package:spotired/src/pages/pages/library/import_playlist_page.dart';
 
@@ -21,6 +24,53 @@ class ModalBottomMenu {
         'text': 'Importar de Youtube',
         'description': 'Agrega una playlist desde un enlace de YouTube',
         'event': () => _openPage(context, const ImportPlaylistPage()),
+      },
+    ];
+
+    return showModalBottomSheet(
+      context: context,
+      isScrollControlled: false,
+      backgroundColor: const Color.fromRGBO(31, 31, 31, 1),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(15)),
+      ),
+      builder: (BuildContext context) {
+        return Padding(
+          padding: const EdgeInsets.only(top: 10),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: const BoxDecoration(
+                  borderRadius: BorderRadius.all(Radius.circular(20)),
+                  color: Color.fromRGBO(99, 99, 99, 1),
+                ),
+              ),
+
+              const SizedBox(height: 15),
+
+              // OPTIONS
+              ..._showOptions(btns),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  stopDownloadPlaylist(BuildContext context, { required int playlistId }) {
+    final List<dynamic> btns = [
+      {
+        'icon': Icons.arrow_circle_down_sharp,
+        'text': 'Deshabilitar descargas automáticas',
+        'event': () => _disablePlaylistAutoDownloads(context, playlistId),
+      },
+      {
+        'icon': Icons.music_off_outlined,
+        'text': 'Eliminar canciones descargadas',
+        'event': () => _removeDownloadedSongsFromPlaylist(context, playlistId),
       },
     ];
 
@@ -167,11 +217,19 @@ class ModalBottomMenu {
   videoSongMenu(BuildContext context, int playlistid, VideoSong videoSong) {
     final List<dynamic> btns = [
       {
+        'icon': Icons.add_circle_outline,
+        'text': 'Añadir a la lista',
+        'event': () => _addToPlaylists(context, videoSong.url),
+      },
+      {
         'icon': Icons.close,
         'text': 'Eliminar de la playlist',
         'event': () => _removeUrlOfPlaylist(context, playlistid, videoSong.url),
       },
     ];
+
+    // VIDEO-SONG IMG
+    Uint8List cachedImage = videoController.getVideoImageFromUrl(videoSong.url)!;
 
     return showModalBottomSheet(
       context: context,
@@ -220,7 +278,7 @@ class ModalBottomMenu {
                                       bottom: -12,
                                       left: -15,
                                       right: -15,
-                                      child: Image.network(videoController.construyeVideoThumbnail(videoSong.thumbnail)),
+                                      child: Image.memory(cachedImage, fit: BoxFit.scaleDown)
                                     )
                                   ],
                                 ),
@@ -369,5 +427,23 @@ class ModalBottomMenu {
   _removeUrlOfPlaylist(BuildContext context, int playlistid, String url) {
     playlistController.removeVideoOfPlaylist(playlistid, url);
     Navigator.pop(context);
+  }
+
+  _addToPlaylists(BuildContext context, String url) {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => AddVideoPage(videoSongUrl: url)),
+    );
+  }
+
+  _disablePlaylistAutoDownloads(BuildContext context, int playlistId) async {
+    Navigator.pop(context);
+    await playlistController.disablePlaylistAutoDownloads(playlistId);
+  }
+
+  _removeDownloadedSongsFromPlaylist(BuildContext context, int playlistId) async {
+    Navigator.pop(context);
+    await playlistController.disablePlaylistAutoDownloads(playlistId);
+    await playlistController.removeDownloadedSongsFromPlaylist(playlistId);
   }
 }

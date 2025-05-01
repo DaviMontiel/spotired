@@ -163,8 +163,14 @@ class _SearchPageState extends State<SearchPage> {
   }
 
   void _onClickPlayBtn() async {
-    // CREATE VIDEO-SONG
     final videoId = _video!.url.split('v=')[1];
+
+    if (videoController.currentVideo.value?.url == videoId) {
+      videoController.changeCurrentVideoSongPosition(0, play: true);
+      return;
+    }
+
+    // CREATE VIDEO-SONG
     VideoSong videoSong = VideoSong(
       url: videoId,
       title: _video!.title,

@@ -14,6 +14,11 @@ class PlaylistController with ChangeNotifier {
   // DATA
   Map<int, Playlist> _playlists = {};
   Map<int, Playlist> get playlists => _playlists;
+  Map<int, Playlist> get allowedPlaylists {
+    return Map.fromEntries(
+      _playlists.entries.where((entry) => entry.value.delete == false),
+    );
+  }
 
   // STATUS
   int? _currentPlaylistPlayingId;
@@ -66,9 +71,6 @@ class PlaylistController with ChangeNotifier {
   }
 
   Future<int?> addPlaylist(String name) async {
-    final playlist = findPlaylistByName(name);
-    if (playlist != null) return null;
-
     final int playlistId = playlists.values.isNotEmpty
       ? playlists.values.last.id + 1
       : 0;
@@ -82,7 +84,17 @@ class PlaylistController with ChangeNotifier {
     return playlistId;
   }
 
-  Future<void> removePlaylist(int playlistid) async {
+  Future<void> removePlaylist(int playlistid, { bool setDelete = true }) async {
+    // GET PLAYLIST
+    Playlist? playlist = playlists[playlistid];
+    if (playlist == null) return;
+
+    // SET 'DELETE' TO TRUE
+    if (setDelete) {
+      playlist.delete = true;
+      await savePlaylists();
+    }
+
     // REMOVE VIDEO-SONGS
     final videosCopy = List<String>.from(_playlists[playlistid]!.videos);
     for (final videoUrl in videosCopy) {
@@ -113,8 +125,16 @@ class PlaylistController with ChangeNotifier {
       videoController.addVideoSong(video);
     }
 
+    // ADD
     existingVideo.playlists.add(playlistid);
     playlist.videos.add(existingVideo.url);
+
+    // DOWNLOAD
+    if (playlist.downloadVideos) {
+      if (!video.downloaded) {
+        videoController.downloadVideoSong(video);
+      }
+    }
 
     notifyListeners();
 
@@ -135,7 +155,7 @@ class PlaylistController with ChangeNotifier {
     savePlaylists();
   }
 
-  void savePlaylists() async {
+  Future<void> savePlaylists() async {
     final jsonString = jsonEncode(
       playlists.map((key, value) => MapEntry(key.toString(), value.toMap()))
     );
@@ -173,7 +193,7 @@ class PlaylistController with ChangeNotifier {
         );
       }).toList();
 
-      final playlistId = await addPlaylist('YT: ${playlist.title} - ${DateTime.now()}');
+      final playlistId = await addPlaylist('YT: ${playlist.title}');
 
       // ADD SONGs
       for (var videoSong in videoList) {
@@ -184,5 +204,112 @@ class PlaylistController with ChangeNotifier {
     } finally {
       yt.close();
     }
+  }
+
+  Future<void> removePlaylists() async {
+    for (final playlist in _playlists.values) {
+      if (!playlist.delete) continue;
+
+      playlistController.removePlaylist(playlist.id, setDelete: false);
+    }
+  }
+
+  Future<void> downloadPlaylists() async {
+    for (final playlist in _playlists.values) {
+      if (!playlist.downloadVideos || playlist.delete) continue;
+
+      playlistController.downloadPlaylist(playlist.id);
+    }
+  }
+
+  Future<void> downloadPlaylist(int playlistId) async {
+    Playlist playlist = _playlists[playlistId]!;
+
+    double downloadedVideos = playlistController.getDownloadedVideosOfPlaylistCount(playlist.id);
+    if (playlist.downloadVideos && playlist.videos.length == downloadedVideos) return;
+
+    playlist.downloadVideos = true;
+    notifyListeners();
+    savePlaylists();
+
+    for (int f=0; f<playlist.videos.length; f++) {
+      // GET VIDEO-SONG
+      VideoSong videoSong = videoController.getVideoByUrl(playlist.videos[f])!;
+      if (videoSong.downloaded) continue;
+
+      // DOWNLOAD
+      videoController.downloadVideoSong(videoSong);
+      await Future.delayed(const Duration(seconds: 1));
+    }
+  }
+
+  bool containsDownloadedPlaylistWithVideo(String videoId) {
+    return allowedPlaylists.values.any((playlist) {
+      if (playlist.downloadVideos == true && playlist.videos.contains(videoId)) {
+        return true;
+      }
+
+      return false;
+    });
+  }
+
+  Future<void> disablePlaylistAutoDownloads(int playlistId) async {
+    // GET
+    Playlist? playlist = playlists[playlistId];
+    if (playlist == null) return;
+
+    // EDIT
+    playlist.downloadVideos = false;
+
+    notifyListeners();
+
+    // SAVE
+    await savePlaylists();
+  }
+
+  Future<void> removeDownloadedSongsFromPlaylist(int playlistId, { bool setDelete = true }) async {
+    // GET
+    Playlist? playlist = playlists[playlistId];
+    if (playlist == null) return;
+
+    if (setDelete) {
+      playlist.deleteAudios = true;
+      await savePlaylists();
+    }
+
+    if (!playlist.deleteAudios) return;
+
+    for (var f=0; f<playlist.videos.length; f++) {
+      // GET VIDEO-SONG
+      VideoSong videoSong = videoController.getVideoByUrl(playlist.videos[f])!;
+      bool somePlaylistHasVideoSongWithDownloads = playlistController.containsDownloadedPlaylistWithVideo(videoSong.url);
+      if (!(
+        videoSong.downloaded &&
+        !somePlaylistHasVideoSongWithDownloads
+      )) continue;
+
+      // REMOVE AUDIO
+      await videoController.removeVideoSongAudio(videoSong.url);
+    }
+
+    playlist.deleteAudios = false;
+    await savePlaylists();
+  }
+
+  double getDownloadedVideosOfPlaylistCount(int playlistId) {
+    // GET PLAYLIST
+    Playlist? playlist = _playlists[playlistId];
+    if (playlist == null) return -1;
+
+    double count = 0;
+
+    for (int f=0; f<playlist.videos.length; f++) {
+      VideoSong videoSong = videoController.getVideoByUrl(playlist.videos[f])!;
+      if (videoSong.downloaded) {
+        count += 1;
+      }
+    }
+
+    return count;
   }
 }

@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:spotired/src/controllers/app_controller.dart';
 import 'package:spotired/src/controllers/video_controller.dart';
@@ -79,6 +81,15 @@ class _NavigationState extends State<Navigation> {
                           return ValueListenableBuilder<VideoSong?>(
                             valueListenable: videoController.currentVideo,
                             builder: (context, value, child) {
+                              Uint8List? cachedImage;
+                              if (value != null) {
+                                // IMG
+                                cachedImage = videoController.getVideoImageFromUrl(value.url);
+                                if (cachedImage == null) {
+                                  videoController.loadImageFromVideoUrl(value.url);
+                                }
+                              }
+
                               return AnimatedPositioned(
                                 duration: const Duration(milliseconds: 500),
                                 curve: Curves.easeInOut,
@@ -125,7 +136,9 @@ class _NavigationState extends State<Navigation> {
                                                               top: -8,
                                                               bottom: -8,
                                                               left: -18,
-                                                              child: Image.network(videoController.construyeVideoThumbnail(value.thumbnail)),
+                                                              child: cachedImage == null
+                                                                ? const SizedBox()
+                                                                : Image.memory(cachedImage)
                                                             )
                                                           ],
                                                         ),
@@ -142,22 +155,27 @@ class _NavigationState extends State<Navigation> {
                                                         mainAxisAlignment: MainAxisAlignment.center,
                                                         crossAxisAlignment: CrossAxisAlignment.start,
                                                         children: [
-                                                          Text(
-                                                            value == null
-                                                              ? ''
-                                                              : value.title,
+                                                          AnimatedDefaultTextStyle(
+                                                            duration: const Duration(milliseconds: 100),
                                                             style: TextStyle(
                                                               fontSize: 13,
                                                               fontWeight: FontWeight.bold,
                                                               color: elementsColor,
+                                                              letterSpacing: 0.25,
                                                             ),
-                                                            overflow: TextOverflow.ellipsis,
-                                                            maxLines: 1,
+                                                            child: Text(
+                                                              value == null
+                                                                ? ''
+                                                                : value.title,
+                                                              overflow: TextOverflow.ellipsis,
+                                                              maxLines: 1,
+                                                            ),
                                                           ),
-                                                          Text(
-                                                            value == null
-                                                              ? ''
-                                                              : value.author,
+
+                                                          const SizedBox( height: 4 ),
+
+                                                          AnimatedDefaultTextStyle(
+                                                            duration: const Duration(milliseconds: 100),
                                                             style: TextStyle(
                                                               fontSize: 13,
                                                               color: Color.fromRGBO(
@@ -166,6 +184,14 @@ class _NavigationState extends State<Navigation> {
                                                                 elementsColor.blue,
                                                                 0.7,
                                                               ),
+                                                              letterSpacing: 0.25,
+                                                            ),
+                                                            child: Text(
+                                                              value == null
+                                                                ? ''
+                                                                : value.author,
+                                                              overflow: TextOverflow.ellipsis,
+                                                              maxLines: 1,
                                                             ),
                                                           ),
                                                         ],
@@ -188,9 +214,23 @@ class _NavigationState extends State<Navigation> {
                                                       if (videoSongStatus == VideoSongStatus.loading) {
                                                         return SizedBox(
                                                           width: 35,
-                                                          child: CircularProgressIndicator(
-                                                            color: elementsColor,
+                                                          child: TweenAnimationBuilder<Color?>(
+                                                            tween: ColorTween(
+                                                              begin: elementsColor == Colors.white
+                                                                ? Colors.white : Colors.black,
+                                                              end: elementsColor == Colors.black
+                                                                ? Colors.black : Colors.white,
+                                                            ),
+                                                            duration: const Duration(milliseconds: 100),
+                                                            builder: (context, color, child) {
+                                                              return CircularProgressIndicator(
+                                                                valueColor: AlwaysStoppedAnimation<Color>(color!),
+                                                              );
+                                                            },
                                                           ),
+                                                          // child: CircularProgressIndicator(
+                                                          //   color: elementsColor,
+                                                          // ),
                                                         );
                                                       }
                           

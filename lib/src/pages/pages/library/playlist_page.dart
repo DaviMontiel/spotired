@@ -6,6 +6,7 @@ import 'package:spotired/src/data/models/video/video_song.dart';
 import 'package:spotired/src/pages/data/constants.dart';
 import 'package:spotired/src/pages/data/enums/navigation_pages.enum.dart';
 import 'package:spotired/src/pages/data/providers/navitation_provider.dart';
+import 'package:spotired/src/shared/widgets/download_progress_icon.dart';
 import 'package:spotired/src/shared/widgets/modal_bottom_menu.dart';
 
 class PlaylistPage extends StatefulWidget {
@@ -36,9 +37,11 @@ class _PlaylistPageState extends State<PlaylistPage> {
     final double scrollPosition = _scrollController.position.pixels;
     double stickyThreshold = _goBackButtonTop - _playBtnButtonTop;
 
-    setState(() {
-      _showStickyPlayButton = scrollPosition + stickyThreshold + 2 >= 0;
-    });
+    if (scrollPosition + stickyThreshold + 2 >= 0 != _showStickyPlayButton) {
+      setState(() {
+        _showStickyPlayButton = scrollPosition + stickyThreshold + 2 >= 0;
+      });
+    }
   }
 
   @override
@@ -48,12 +51,17 @@ class _PlaylistPageState extends State<PlaylistPage> {
     super.initState();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final RenderBox goBackRenderBox = _goBackKey.currentContext!.findRenderObject() as RenderBox;
-      final RenderBox playBtnRenderBox = _playBtnKey.currentContext!.findRenderObject() as RenderBox;
-      setState(() {
+      if (_goBackKey.currentContext != null) {
+        final RenderBox goBackRenderBox = _goBackKey.currentContext!.findRenderObject() as RenderBox;
         _goBackButtonTop = goBackRenderBox.localToGlobal(Offset.zero).dy;
+      }
+
+      if (_playBtnKey.currentContext != null) {
+        final RenderBox playBtnRenderBox = _playBtnKey.currentContext!.findRenderObject() as RenderBox;
         _playBtnButtonTop = playBtnRenderBox.localToGlobal(Offset.zero).dy;
-      });
+      }
+
+      setState(() {});
     });
   }
 
@@ -87,215 +95,281 @@ class _PlaylistPageState extends State<PlaylistPage> {
             ListenableBuilder(
               listenable: playlistController,
               builder: (BuildContext context, Widget? child) {
-                return ValueListenableBuilder<VideoSong?>(
-                  valueListenable: videoController.currentVideo,
-                  builder: (context, value, child) {
-                    return ListView.builder(
-                      controller: _scrollController,
-                      itemCount: _playlist.videos.length + 1,
-                      itemBuilder: (context, index) {
-        
-                        // HEADER
-                        if (index == 0) {
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const SizedBox(height: 25),
-                          
-                              // Playlist Cover
-                              Center(
-                                child: Container(
-                                  width: 250,
-                                  height: 250,
-                                  decoration: const BoxDecoration(
-                                    borderRadius: BorderRadius.all(Radius.circular(5)),
-                                    color: Color.fromRGBO(35, 35, 35, 1),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black,
-                                        spreadRadius: 0.5,
-                                        blurRadius: 10,
+                return ListenableBuilder(
+                  listenable: videoController,
+                  builder: (BuildContext context, Widget? child) {
+                    double downloadedVideos = playlistController.getDownloadedVideosOfPlaylistCount(_playlist.id);
+
+                    return ValueListenableBuilder<VideoSong?>(
+                      valueListenable: videoController.currentVideo,
+                      builder: (context, value, child) {
+                        return ListView.builder(
+                          controller: _scrollController,
+                          itemCount: _playlist.videos.length + 1,
+                          itemBuilder: (context, index) {
+                        
+                            // HEADER
+                            if (index == 0) {
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const SizedBox(height: 25),
+                              
+                                  // Playlist Cover
+                                  Center(
+                                    child: Container(
+                                      width: 250,
+                                      height: 250,
+                                      decoration: const BoxDecoration(
+                                        borderRadius: BorderRadius.all(Radius.circular(5)),
+                                        color: Color.fromRGBO(35, 35, 35, 1),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black,
+                                            spreadRadius: 0.5,
+                                            blurRadius: 10,
+                                          ),
+                                        ],
                                       ),
-                                    ],
-                                  ),
-                                  child: const Center(
-                                    child: Icon(
-                                      Icons.music_note_outlined,
-                                      size: 90,
-                                      color: Color.fromRGBO(125, 125, 125, 1),
+                                      child: const Center(
+                                        child: Icon(
+                                          Icons.music_note_outlined,
+                                          size: 90,
+                                          color: Color.fromRGBO(125, 125, 125, 1),
+                                        ),
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ),
-                          
-                              const SizedBox(height: 20),
-                          
-                              // PLAY LIST NAME
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 20),
-                                child: Text(
-                                  _playlist.name,
-                                  style: const TextStyle(
-                                    color: Constants.tertiaryColor,
-                                    fontSize: 28,
-                                    fontWeight: FontWeight.bold,
+                              
+                                  const SizedBox(height: 20),
+                              
+                                  // PLAY LIST NAME
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                                    child: Text(
+                                      _playlist.name,
+                                      style: const TextStyle(
+                                        color: Constants.tertiaryColor,
+                                        fontSize: 28,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
                                   ),
-                                ),
-                              ),
-                          
-                              const SizedBox(height: 15),
-                          
-                              // ADD SONG, PLAY
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 20),
-                                child: Stack(
-                                  children: [
-                                    Center(
-                                      child: OutlinedButton(
-                                        onPressed: _onClickAddSongs,
-                                        style: OutlinedButton.styleFrom(
-                                          foregroundColor: Constants.tertiaryColor,
-                                          side: const BorderSide(color: Constants.tertiaryColor),
-                                          padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(30),
+                              
+                                  const SizedBox(height: 15),
+                              
+                                  // ADD SONG, PLAY
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                                    child: Stack(
+                                      children: [
+                                        Center(
+                                          child: OutlinedButton(
+                                            onPressed: _onClickAddSongs,
+                                            style: OutlinedButton.styleFrom(
+                                              foregroundColor: Constants.tertiaryColor,
+                                              side: const BorderSide(color: Constants.tertiaryColor),
+                                              padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(30),
+                                              ),
+                                            ),
+                                            child: const Text("Agregar canciones", style: TextStyle(fontSize: 18)),
                                           ),
                                         ),
-                                        child: const Text("Agregar canciones", style: TextStyle(fontSize: 18)),
+
+                                        if (_playlist.videos.isNotEmpty)
+                                        ...[
+                                          Positioned(
+                                            left: 0,
+                                            bottom: 0,
+                                            top: 0,
+                                            child: GestureDetector(
+                                              onTap: _onClickDownloadBtn,
+                                              child: DownloadProgressIcon(
+                                                progress: !_playlist.downloadVideos
+                                                  ? 0
+                                                  : downloadedVideos / _playlist.videos.length,
+                                                size: 35,
+                                                primaryColor: Colors.red,
+                                                secondaryColor: const Color.fromRGBO(175, 175, 175, 1),
+                                              ),
+                                            ),
+                                          ),
+                          
+                                          if (!_showStickyPlayButton)
+                                          Positioned(
+                                            right: 0,
+                                            bottom: 0,
+                                            top: 0,
+                                            child: GestureDetector(
+                                              onTap: _onClickPlayBtn,
+                                              child: Container(
+                                                key: _playBtnKey,
+                                                width: 50,
+                                                height: 50,
+                                                decoration: const BoxDecoration(
+                                                  color: Constants.primaryColor,
+                                                  shape: BoxShape.circle,
+                                                ),
+                                                child: const Icon(Icons.play_arrow, color: Colors.black, size: 35),
+                                              ),
+                                            ),
+                                          ),
+                                        ]
+                                      ],
+                                    ),
+                                  ),
+                        
+                                  const SizedBox(height: 15),
+                                ],
+                              );
+                            }
+                
+                            // VIDEO-SONG
+                            final videoSong = videoController.getVideoByUrl(_playlist.videos[index - 1])!;
+                
+                            // IMG
+                            final cachedImage = videoController.getVideoImageFromUrl(videoSong.url);
+                            if (cachedImage == null) {
+                              videoController.loadImageFromVideoUrl(videoSong.url);
+                            }
+                
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 20),
+                              child: Padding(
+                                padding: EdgeInsets.only(
+                                  bottom: index == _playlist.videos.length ? 130 : 20.0,
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    // LEFT
+                                    Expanded(
+                                      child: GestureDetector(
+                                        onTap: () => _selectSong(videoSong),
+                                        child: Container(
+                                          color: Colors.transparent,
+                                          child: Row(
+                                            children: [
+                                              // SONG IMG
+                                              Container(
+                                                width: 52,
+                                                height: 52,
+                                                decoration: const BoxDecoration(
+                                                  borderRadius: BorderRadius.all(Radius.circular(5)),
+                                                  color: Color.fromRGBO(35, 35, 35, 1),
+                                                ),
+                                                child: ClipRRect(
+                                                  borderRadius: BorderRadius.circular(5),
+                                                  child: Stack(
+                                                    children: [
+                                                      Positioned(
+                                                        top: -8,
+                                                        bottom: -8,
+                                                        left: -19.4,
+                                                        child: cachedImage == null
+                                                          ? const SizedBox()
+                                                          : Image.memory(cachedImage)
+                                                      )
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+                                    
+                                              const SizedBox(width: 13),
+                                    
+                                              // SONG TITLE
+                                              Expanded(
+                                                child: Padding(
+                                                  padding: const EdgeInsets.only(right: 10),
+                                                  child: Column(
+                                                    mainAxisAlignment: MainAxisAlignment.center,
+                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                    children: [
+                                                      Text(
+                                                        videoSong.title,
+                                                        style: TextStyle(
+                                                          fontSize: 15,
+                                                          fontWeight: FontWeight.bold,
+                                                          color: videoSong.url == videoController.currentVideo.value?.url
+                                                            ? Constants.primaryColor
+                                                            : Colors.white,
+                                                        ),
+                                                        overflow: TextOverflow.ellipsis,
+                                                        maxLines: 1,
+                                                      ),
+                                                      Row(
+                                                        children: [
+                                                          if (_playlist.downloadVideos || videoSong.downloaded)
+                                                          Builder(
+                                                            builder: (context) {
+                                                              double? downloadProgress = videoController.downloadVideosProgress[videoSong.url];
+                                                              downloadProgress ??= 0;
+
+                                                              return Row(
+                                                                children: [
+                                                                  DownloadProgressIcon(
+                                                                    progress: videoSong.downloaded
+                                                                      ? 1
+                                                                      : downloadProgress / 100,
+                                                                    size: 15,
+                                                                    primaryColor: Colors.red,
+                                                                    secondaryColor: const Color.fromRGBO(175, 175, 175, 1),
+                                                                  ),
+
+                                                                  const SizedBox( width: 5 ),
+                                                                ],
+                                                              );
+                                                            },
+                                                          ),
+
+                                                          Expanded(
+                                                            child: Text(
+                                                              videoSong.author,
+                                                              style: const TextStyle(
+                                                                fontSize: 14,
+                                                                color: Color.fromRGBO(255, 255, 255, 0.7),
+                                                              ),
+                                                              overflow: TextOverflow.ellipsis,
+                                                              maxLines: 1,
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
                                       ),
                                     ),
-        
-                                    if (!_showStickyPlayButton)
-                                    Positioned(
-                                      right: 0,
-                                      bottom: 0,
-                                      top: 0,
-                                      child: GestureDetector(
-                                        onTap: _onClickPlayBtn,
-                                        child: Container(
-                                          key: _playBtnKey,
-                                          width: 50,
-                                          height: 50,
-                                          decoration: const BoxDecoration(
-                                            color: Constants.primaryColor,
-                                            shape: BoxShape.circle,
-                                          ),
-                                          child: const Icon(Icons.play_arrow, color: Colors.black, size: 35),
+                                                                
+                                    // RIGHT
+                                    GestureDetector(
+                                      onTap: () => _onClickVideoSongMenu(videoSong),
+                                      child: const Padding(
+                                        padding: EdgeInsets.only(right: 5),
+                                        child: Row(
+                                          children: [
+                                            Icon(
+                                              Icons.more_horiz_sharp,
+                                              color: Color.fromRGBO(255, 255, 255, 0.7),
+                                              size: 25,
+                                            ),
+                                          ],
                                         ),
                                       ),
                                     ),
                                   ],
                                 ),
                               ),
-                    
-                              const SizedBox(height: 15),
-                            ],
-                          );
-                        }
-        
-                    
-                        // VIDEO-SONGS
-                        final videoSong = videoController.getVideoByUrl(_playlist.videos[index - 1])!;
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          child: Padding(
-                            padding: EdgeInsets.only(
-                              bottom: index == _playlist.videos.length ? 130 : 20.0,
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                // LEFT
-                                Expanded(
-                                  child: GestureDetector(
-                                    onTap: () => _selectSong(videoSong),
-                                    child: Container(
-                                      color: Colors.transparent,
-                                      child: Row(
-                                        children: [
-                                          // SONG IMG
-                                          Container(
-                                            width: 52,
-                                            height: 52,
-                                            decoration: const BoxDecoration(
-                                              borderRadius: BorderRadius.all(Radius.circular(5)),
-                                              color: Color.fromRGBO(35, 35, 35, 1),
-                                            ),
-                                            child: ClipRRect(
-                                              borderRadius: BorderRadius.circular(5),
-                                              child: Stack(
-                                                children: [
-                                                  Positioned(
-                                                    top: -8,
-                                                    bottom: -8,
-                                                    left: -19.4,
-                                                    child: Image.network(videoController.construyeVideoThumbnail(videoSong.thumbnail)),
-                                                  )
-                                                ],
-                                              ),
-                                            ),
-                                          ),
-                                
-                                          const SizedBox(width: 13),
-                                
-                                          // SONG TITLE
-                                          Expanded(
-                                            child: Padding(
-                                              padding: const EdgeInsets.only(right: 10),
-                                              child: Column(
-                                                mainAxisAlignment: MainAxisAlignment.center,
-                                                crossAxisAlignment: CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                    videoSong.title,
-                                                    style: TextStyle(
-                                                      fontSize: 15,
-                                                      fontWeight: FontWeight.bold,
-                                                      color: videoSong.url == videoController.currentVideo.value?.url
-                                                        ? Constants.primaryColor
-                                                        : Colors.white,
-                                                    ),
-                                                    overflow: TextOverflow.ellipsis,
-                                                    maxLines: 1,
-                                                  ),
-                                                  Text(
-                                                    videoSong.author,
-                                                    style: const TextStyle(
-                                                      fontSize: 14,
-                                                      color: Color.fromRGBO(255, 255, 255, 0.7),
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                                            
-                                // RIGHT
-                                GestureDetector(
-                                  onTap: () => _onClickVideoSongMenu(videoSong),
-                                  child: const Padding(
-                                    padding: EdgeInsets.only(right: 5),
-                                    child: Row(
-                                      children: [
-                                        Icon(
-                                          Icons.more_horiz_sharp,
-                                          color: Color.fromRGBO(255, 255, 255, 0.7),
-                                          size: 25,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
+                            );
+                          },
                         );
-                      },
+                      }
                     );
                   }
                 );
@@ -351,6 +425,17 @@ class _PlaylistPageState extends State<PlaylistPage> {
 
   void _onClickAddSongs() {
     navigationProvider.changeNavigationPage(NavigationPagesEnum.search);
+  }
+
+  void _onClickDownloadBtn() {
+    // DOWNLOAD
+    if (!_playlist.downloadVideos) {
+      playlistController.downloadPlaylist(_playlist.id);
+      return;
+    }
+
+    // SHOW DELETE DOWNLOADS
+    ModalBottomMenu().stopDownloadPlaylist(context, playlistId: _playlist.id);
   }
 
   void _onClickPlayBtn() {
