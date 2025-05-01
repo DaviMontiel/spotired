@@ -110,6 +110,15 @@ class _PlaylistPageState extends State<PlaylistPage> {
                         
                             // HEADER
                             if (index == 0) {
+                              // VIDEO-SONG
+                              final videoSong = videoController.getVideoByUrl(_playlist.videos[index])!;
+
+                              // IMG
+                              final cachedImage = videoController.getVideoImageFromUrl(videoSong.url);
+                              if (cachedImage == null) {
+                                videoController.loadImageFromVideoUrl(videoSong.url);
+                              }
+
                               return Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -131,11 +140,19 @@ class _PlaylistPageState extends State<PlaylistPage> {
                                           ),
                                         ],
                                       ),
-                                      child: const Center(
-                                        child: Icon(
-                                          Icons.music_note_outlined,
-                                          size: 90,
-                                          color: Color.fromRGBO(125, 125, 125, 1),
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(5),
+                                        child: Stack(
+                                          children: [
+                                            Positioned(
+                                              top: -48,
+                                              bottom: -48,
+                                              left: -105,
+                                              child: cachedImage == null
+                                                ? const SizedBox()
+                                                : Image.memory(cachedImage)
+                                            ),
+                                          ],
                                         ),
                                       ),
                                     ),
