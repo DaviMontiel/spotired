@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:spotired/src/controllers/playlist_controller.dart';
 import 'package:spotired/src/controllers/video_controller.dart';
@@ -110,13 +112,17 @@ class _PlaylistPageState extends State<PlaylistPage> {
                         
                             // HEADER
                             if (index == 0) {
-                              // VIDEO-SONG
-                              final videoSong = videoController.getVideoByUrl(_playlist.videos[index])!;
+                              Uint8List? cachedImage;
 
-                              // IMG
-                              final cachedImage = videoController.getVideoImageFromUrl(videoSong.url);
-                              if (cachedImage == null) {
-                                videoController.loadImageFromVideoUrl(videoSong.url);
+                              if (_playlist.videos.isNotEmpty) {
+                                // VIDEO-SONG
+                                final videoSong = videoController.getVideoByUrl(_playlist.videos[0])!;
+
+                                // IMG
+                                cachedImage = videoController.getVideoImageFromUrl(videoSong.url);
+                                if (cachedImage == null) {
+                                  videoController.loadImageFromVideoUrl(videoSong.url);
+                                }
                               }
 
                               return Column(
