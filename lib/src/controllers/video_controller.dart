@@ -295,10 +295,44 @@ class VideoController with ChangeNotifier {
   }
 
   Future<void> removeVideoSong(String videoSongUrl) async {
-    await _removeFileImg(videoSongUrl);
-    await videoController.removeVideoSongAudio(videoSongUrl);
-    _videos.remove(videoSongUrl);
-    _videosImages.remove(videoSongUrl);
+    try {
+      await _removeFileImg(videoSongUrl);
+      await removeVideoSongAudio(videoSongUrl);
+      _videos.remove(videoSongUrl);
+      _videosImages.remove(videoSongUrl);
+
+      if (_pendingVideos.contains(videoSongUrl)) {
+        _pendingVideos.remove(videoSongUrl);
+        await dataService.setStringList(SharePreferenceValues.pendingVideos, [..._pendingVideos]);
+      }
+
+      int? indexToRemove;
+      for (int i = 0; i < playlistSource.children.length; i++) {
+        final source = playlistSource.children[i];
+        if (source is ProgressiveAudioSource) {
+          if (source.tag.id == videoSongUrl) {
+            indexToRemove = i;
+            break;
+          }
+        } else if (source is UriAudioSource) {
+          if (source.tag.id == videoSongUrl) {
+            indexToRemove = i;
+            break;
+          }
+        }
+      }
+
+      if (indexToRemove != null) {
+        await playlistSource.removeAt(indexToRemove);
+
+        final currentIndex = audioPlayer.currentIndex ?? 0;
+        if (indexToRemove > currentIndex) {
+          _prepareNextVideo(_normalSecuence, exclude: videoSongUrl);
+        }
+      }
+    } catch (e) {
+      print('Error al eliminar video: $e');
+    }
   }
 
   Future<File?> loadImageFromVideoUrl(String videoUrl) async {
@@ -376,26 +410,27 @@ class VideoController with ChangeNotifier {
       _pendingVideos = List.from(playlist.videos);
 
       // SAVE PENDING-VIDEOS
+      _pendingVideos.shuffle();
       dataService.setStringList(SharePreferenceValues.pendingVideos, [..._pendingVideos]);
     }
 
     if (_pendingVideos.isEmpty) return null;
 
-    _pendingVideos.shuffle();
     return _pendingVideos.removeLast();
   }
 
-  _prepareNextVideo(bool secuential) {
+  _prepareNextVideo(bool secuential, { String? exclude }) {
     if (secuential) {
-      _prepareNextSecuentialVideo();
+      _prepareNextSecuentialVideo(excludeUrl: exclude);
     } else {
       _prepareNextRandomVideo();
     }
   }
 
-  void _prepareNextSecuentialVideo() {
+  void _prepareNextSecuentialVideo({ String? excludeUrl }) {
     // GET THE CURRENT PLAYLIST
-    MiPlayList.Playlist playlist = playlistController.playlists[playlistController.currentPlaylistPlayingId]!;
+    MiPlayList.Playlist? playlist = playlistController.playlists[playlistController.currentPlaylistPlayingId];
+    if (playlist == null) return;
 
     // GET THE CURRENT VIDEO URL
     String? currentVideoUrl = currentVideo.value?.url;
@@ -408,7 +443,7 @@ class VideoController with ChangeNotifier {
     int nextIndex = (currentIndex + 1) % playlist.videos.length;
 
     // GET THE NEXT VIDEO URL
-    String nextVideoUrl = playlist.videos[nextIndex];
+    String nextVideoUrl = playlist.videos.where((item) => item != excludeUrl).toList()[nextIndex];
 
     // ADD NEXT VIDEO
     _addVideoSongToPlaylist(getVideoByUrl(nextVideoUrl)!);
@@ -416,9 +451,11 @@ class VideoController with ChangeNotifier {
 
   _prepareNextRandomVideo() {
     String? nextVideoUrl = _getRandomVideo();
+    VideoSong? videoSong = getVideoByUrl(nextVideoUrl!);
+    if (videoSong == null) return;
 
     // ADD NEXT VIDEO
-    _addVideoSongToPlaylist(getVideoByUrl(nextVideoUrl!)!);
+    _addVideoSongToPlaylist(videoSong);
   }
 
   void playNextRandomVideo() {
