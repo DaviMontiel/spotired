@@ -26,7 +26,7 @@ class VideoController with ChangeNotifier {
   Map<String, VideoSong> _videos = {};
 
   // STATUS
-  final Map<String, Uint8List?> _videosImages = {};
+  final Map<String, String> _videosImages = {};
   final Map<String, double?> downloadVideosProgress = {};
   ConcatenatingAudioSource playlistSource = ConcatenatingAudioSource(children: []);
   List<String> _pendingVideos = [];
@@ -70,8 +70,20 @@ class VideoController with ChangeNotifier {
     return _videos[url];
   }
 
-  Uint8List? getVideoImageFromUrl(String url) {
+  String? getVideoImageFromUrl(String url) {
     return _videosImages[url];
+  }
+
+  Future<File?> getVideoImageFileFromUrl(String url) async {
+    String storageImageName = 'video-image-$url.jpg';
+
+    final dir = await getApplicationDocumentsDirectory();
+    final localPath = '${dir.path}/$storageImageName';
+    final storageImageFile = File(localPath);
+    final exists = await storageImageFile.exists();
+    if (!exists) return null;
+
+    return storageImageFile;
   }
 
   void addVideoSong(VideoSong video) {
@@ -283,13 +295,13 @@ class VideoController with ChangeNotifier {
   }
 
   Future<void> removeVideoSong(String videoSongUrl) async {
-    await dataService.clearCustom('video-image-$videoSongUrl');
+    await _removeFileImg(videoSongUrl);
     await videoController.removeVideoSongAudio(videoSongUrl);
     _videos.remove(videoSongUrl);
     _videosImages.remove(videoSongUrl);
   }
 
-  Future<Uint8List?> loadImageFromVideoUrl(String videoUrl) async {
+  Future<File?> loadImageFromVideoUrl(String videoUrl) async {
     // GET VIDEO-SONG
     final video = _videos[videoUrl];
     if (video == null) return null;
@@ -300,25 +312,15 @@ class VideoController with ChangeNotifier {
       }
     }
 
-    // GET FROM CACHE
-    if (_videosImages.containsKey(videoUrl)) {
-      final img = _videosImages[videoUrl];
-      if (img != null) notifyListeners();
-      return _videosImages[videoUrl];
-    }
-    _videosImages[videoUrl] = null;
-
     // GET FROM STORAGE
-    String storageImageKey = 'video-image-$videoUrl';
-    String? storageBase64Image = await dataService.getCustom(storageImageKey);
-    if (storageBase64Image != null) {
-      Uint8List imageBytes = base64Decode(storageBase64Image);
-      _videosImages[videoUrl] = imageBytes;
+    final storageImageFile = await getVideoImageFileFromUrl(videoUrl);
+    if (storageImageFile != null) {
+      _videosImages[videoUrl] = storageImageFile.path;
 
       notifyToCurrentVideo();
       notifyListeners();
 
-      return imageBytes;
+      return storageImageFile;
     }
 
     // DOWNLOAD
@@ -328,13 +330,13 @@ class VideoController with ChangeNotifier {
       if (response.statusCode != 200) throw Exception('Failed to download image');
 
       // SAVE
-      dataService.setCustom(storageImageKey, base64Encode(response.bodyBytes));
-      _videosImages[videoUrl] = response.bodyBytes;
+      File file = await saveImageToFile(response.bodyBytes, videoUrl);
+      _videosImages[videoUrl] = file.path;
 
       notifyToCurrentVideo();
       notifyListeners();
 
-      return response.bodyBytes;
+      return file;
     } catch (e) {
       print('Error converting image to base64: $e');
     }
@@ -539,6 +541,9 @@ class VideoController with ChangeNotifier {
       // Buscar ruta local del audio guardado
       String? savedPath = await dataService.getCustom('video-audio-${videoSong.url}');
 
+      // CONFIGURE audio_player WITH AudioSource.uri
+      File? cachedImage = await loadImageFromVideoUrl(videoSong.url);
+
       if (savedPath != null) {
         // Usar archivo local
         return AudioSource.uri(
@@ -547,6 +552,9 @@ class VideoController with ChangeNotifier {
             id: videoSong.url,
             title: videoSong.title,
             artist: videoSong.author,
+            artUri: cachedImage != null
+              ? Uri.file(cachedImage.path)
+              : null,
           ),
         );
       }
@@ -555,13 +563,15 @@ class VideoController with ChangeNotifier {
       String? audioUrl = await _getFinalUrlByYTUrl(videoSong.url);
       if (audioUrl == null) return null;
 
-      // CONFIGURE audio_player WITH AudioSource.uri
       final audioSource = AudioSource.uri(
         Uri.parse(audioUrl),
         tag: MediaItem(
           id: videoSong.url,
           title: videoSong.title,
           artist: videoSong.author,
+          artUri: cachedImage != null
+            ? Uri.file(cachedImage.path)
+            : null,
         ),
       );
 
@@ -570,6 +580,24 @@ class VideoController with ChangeNotifier {
       videoSongStatus.value = VideoSongStatus.paused;
       _error = true;
       return null;
+    }
+  }
+
+  Future<File> saveImageToFile(Uint8List imageData, String videoUrl) async {
+    final dir = await getApplicationDocumentsDirectory();
+    final file = File('${dir.path}/video-image-$videoUrl.jpg');
+    if (await file.exists()) {
+      await file.delete();
+    }
+    await file.writeAsBytes(imageData);
+    return file;
+  }
+
+  Future<void> _removeFileImg(String videoSongUrl) async {
+    final dir = await getApplicationDocumentsDirectory();
+    final file = File('${dir.path}/video-image-$videoSongUrl.jpg');
+    if (await file.exists()) {
+      await file.delete();
     }
   }
 
@@ -681,7 +709,7 @@ class VideoController with ChangeNotifier {
       // CREATE IMAGE PROVIDER
       final ImageProvider imageProvider = savedImage == null
         ? NetworkImage(construyeVideoThumbnail(currentVideo.value!.thumbnail))
-        : MemoryImage(savedImage);
+        : FileImage(File.fromUri(Uri.file(savedImage)));
 
       // WAIT UNTIL IMAGE IS LOADED OR FAILS
       final ImageStream stream = imageProvider.resolve(const ImageConfiguration());

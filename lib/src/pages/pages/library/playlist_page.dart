@@ -1,4 +1,4 @@
-import 'dart:typed_data';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:spotired/src/controllers/playlist_controller.dart';
@@ -112,7 +112,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
                         
                             // HEADER
                             if (index == 0) {
-                              Uint8List? cachedImage;
+                              String? cachedImage;
 
                               if (_playlist.videos.isNotEmpty) {
                                 // VIDEO-SONG
@@ -156,7 +156,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
                                               left: -105,
                                               child: cachedImage == null
                                                 ? const SizedBox()
-                                                : Image.memory(cachedImage)
+                                                : Image.file(File.fromUri(Uri.file(cachedImage))),
                                             ),
                                           ],
                                         ),
@@ -293,7 +293,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
                                                         left: -19.4,
                                                         child: cachedImage == null
                                                           ? const SizedBox()
-                                                          : Image.memory(cachedImage)
+                                                          : Image.file(File.fromUri(Uri.file(cachedImage))),
                                                       )
                                                     ],
                                                   ),

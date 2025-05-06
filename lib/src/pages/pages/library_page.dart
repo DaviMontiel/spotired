@@ -1,4 +1,4 @@
-import 'dart:typed_data';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:spotired/src/controllers/access_controller.dart';
@@ -217,7 +217,7 @@ class _LibraryPageState extends State<LibraryPage> {
       });
     }
 
-    Uint8List? cachedImage;
+    String? cachedImage;
     VideoSong? firstVideoSong = playlist.videos.isNotEmpty
       ? videoController.getVideoByUrl(playlist.videos.first)
       : null;
@@ -279,7 +279,7 @@ class _LibraryPageState extends State<LibraryPage> {
                                 right: -12.5,
                                 child: cachedImage == null
                                   ? const SizedBox()
-                                  : Image.memory(cachedImage, fit: BoxFit.scaleDown)
+                                  : Image.file(File.fromUri(Uri.file(cachedImage)), fit: BoxFit.scaleDown),
                               ),
                             ],
                           ),

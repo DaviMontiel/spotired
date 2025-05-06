@@ -1,4 +1,4 @@
-import 'dart:typed_data';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:spotired/src/controllers/playlist_controller.dart';
@@ -229,7 +229,7 @@ class ModalBottomMenu {
     ];
 
     // VIDEO-SONG IMG
-    Uint8List cachedImage = videoController.getVideoImageFromUrl(videoSong.url)!;
+    String cachedImage = videoController.getVideoImageFromUrl(videoSong.url)!;
 
     return showModalBottomSheet(
       context: context,
@@ -278,7 +278,7 @@ class ModalBottomMenu {
                                       bottom: -12,
                                       left: -15,
                                       right: -15,
-                                      child: Image.memory(cachedImage, fit: BoxFit.scaleDown)
+                                      child: Image.file(File.fromUri(Uri.file(cachedImage)), fit: BoxFit.scaleDown),
                                     )
                                   ],
                                 ),

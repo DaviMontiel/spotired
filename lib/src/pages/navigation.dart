@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:typed_data';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
@@ -108,7 +108,7 @@ class _NavigationState extends State<Navigation> {
                           return ValueListenableBuilder<VideoSong?>(
                             valueListenable: videoController.currentVideo,
                             builder: (context, value, child) {
-                              Uint8List? cachedImage;
+                              String? cachedImage;
                               if (value != null) {
                                 // IMG
                                 cachedImage = videoController.getVideoImageFromUrl(value.url);
@@ -165,7 +165,7 @@ class _NavigationState extends State<Navigation> {
                                                               left: -18,
                                                               child: cachedImage == null
                                                                 ? const SizedBox()
-                                                                : Image.memory(cachedImage)
+                                                                : Image.file(File.fromUri(Uri.file(cachedImage))),
                                                             )
                                                           ],
                                                         ),
