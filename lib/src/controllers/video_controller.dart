@@ -181,6 +181,7 @@ class VideoController with ChangeNotifier {
     _lastAudioPlayerIndex = -1;
     _normalSecuence = selected;
     _error = false;
+    dataService.clear(SharePreferenceValues.pendingVideosCursor);
 
     await dataService.setBool(SharePreferenceValues.savedIsPlaylistSequential, selected);
 
@@ -445,6 +446,11 @@ class VideoController with ChangeNotifier {
     // GET THE NEXT VIDEO URL
     String nextVideoUrl = playlist.videos.where((item) => item != excludeUrl).toList()[nextIndex];
 
+    // ADD FIST QUEUE SONG
+    if (_pendingVideos.isNotEmpty) {
+      nextVideoUrl = _pendingVideos.removeAt(0);
+    }
+
     // ADD NEXT VIDEO
     _addVideoSongToPlaylist(getVideoByUrl(nextVideoUrl)!);
   }
@@ -680,10 +686,8 @@ class VideoController with ChangeNotifier {
     if (savedPlaylistId != null) {
       playlistController.setCurrentPlaylist(savedPlaylistId);
 
-      if (savedIsPlaylistSequential == false) {
         final savedPendingVideos = await dataService.getStringList(SharePreferenceValues.pendingVideos);
         _pendingVideos = savedPendingVideos ?? [];
-      }
     }
 
     // SET SAVED VIDEO COLOR
@@ -781,6 +785,31 @@ class VideoController with ChangeNotifier {
         '${color.red}-${color.green}-${color.blue}',
       );
     } catch (e) {}
+  }
+
+  void addVideoToQueue(String videoUrl) async {
+    // GET CURSOR FOR NOT SECUENCE PLAYBACK
+    int cursor = _pendingVideos.length;
+    if (!_normalSecuence) {
+      int? savedCursor = await dataService.getInt(SharePreferenceValues.pendingVideosCursor);
+
+      if (savedCursor != null && savedCursor > _pendingVideos.length) {
+        savedCursor = null;
+      }
+
+      if (savedCursor == null) {
+        // SAVE CURSOR
+        await dataService.setInt(SharePreferenceValues.pendingVideosCursor, _pendingVideos.length);
+      } else {
+        cursor = savedCursor;
+      }
+    }
+
+    // ADD TO QUEUE
+    _pendingVideos.insert(cursor, videoUrl);
+
+    // SAVE PENDING-VIDEOS
+    dataService.setStringList(SharePreferenceValues.pendingVideos, [..._pendingVideos]);
   }
 
   @override

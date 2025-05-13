@@ -10,6 +10,7 @@ enum SharePreferenceValues {
   currentVideoColor('current-video-color'),
   currentVideo('current-video'),
   pendingVideos('pending-videos'),
+  pendingVideosCursor('pending-videos-cursor'),
 
   // DATA
   playlists('playlists'),

@@ -222,6 +222,11 @@ class ModalBottomMenu {
         'event': () => _addToPlaylists(context, videoSong.url),
       },
       {
+        'icon': Icons.format_list_bulleted_add,
+        'text': 'Agregar a la cola',
+        'event': () => addVideoToQueue(context, videoSong.url),
+      },
+      {
         'icon': Icons.close,
         'text': 'Eliminar de la playlist',
         'event': () => _removeUrlOfPlaylist(context, playlistid, videoSong.url),
@@ -426,6 +431,11 @@ class ModalBottomMenu {
 
   _removeUrlOfPlaylist(BuildContext context, int playlistid, String url) {
     playlistController.removeVideoOfPlaylist(playlistid, url);
+    Navigator.pop(context);
+  }
+
+  addVideoToQueue(BuildContext context, String url) {
+    videoController.addVideoToQueue(url);
     Navigator.pop(context);
   }
 
