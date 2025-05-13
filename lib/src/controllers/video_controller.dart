@@ -181,6 +181,8 @@ class VideoController with ChangeNotifier {
     _lastAudioPlayerIndex = -1;
     _normalSecuence = selected;
     _error = false;
+    _pendingVideos = [];
+    dataService.clear(SharePreferenceValues.pendingVideos);
     dataService.clear(SharePreferenceValues.pendingVideosCursor);
 
     await dataService.setBool(SharePreferenceValues.savedIsPlaylistSequential, selected);
