@@ -2,7 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:spotired/src/controllers/access_controller.dart';
 import 'package:spotired/src/controllers/playlist_controller.dart';
-import 'package:spotired/src/pages/data/constants.dart';
+import 'package:spotired/src/data/constants.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart' as YT;
 

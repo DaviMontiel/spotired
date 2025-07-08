@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:spotired/src/app.dart';
 import 'package:spotired/src/controllers/access_controller.dart';
 import 'package:spotired/src/controllers/app_controller.dart';
@@ -16,6 +17,9 @@ void main() async {
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.light,
   ));
+
+  // LOAD DOTENV
+  await dotenv.load();
 
   await JustAudioBackground.init(
     androidNotificationChannelId: 'com.ryanheise.bg_demo.channel.audio',

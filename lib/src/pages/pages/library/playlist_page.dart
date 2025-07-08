@@ -5,7 +5,7 @@ import 'package:spotired/src/controllers/playlist_controller.dart';
 import 'package:spotired/src/controllers/video_controller.dart';
 import 'package:spotired/src/data/models/playlist/playlist.dart';
 import 'package:spotired/src/data/models/video/video_song.dart';
-import 'package:spotired/src/pages/data/constants.dart';
+import 'package:spotired/src/data/constants.dart';
 import 'package:spotired/src/pages/data/enums/navigation_pages.enum.dart';
 import 'package:spotired/src/pages/data/providers/navitation_provider.dart';
 import 'package:spotired/src/shared/widgets/download_progress_icon.dart';

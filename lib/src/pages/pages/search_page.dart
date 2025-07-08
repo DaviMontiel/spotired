@@ -1,191 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:spotired/src/controllers/video_controller.dart';
-import 'package:spotired/src/data/models/video/video_song.dart';
-import 'package:spotired/src/pages/data/constants.dart';
-import 'package:spotired/src/pages/pages/library/add_video_page.dart';
-
-import 'package:webview_flutter/webview_flutter.dart';
-import 'package:youtube_explode_dart/youtube_explode_dart.dart';
+import 'package:spotired/src/data/constants.dart';
+import 'package:spotired/src/pages/pages/search/native_search_page.dart';
+import 'package:spotired/src/pages/pages/search/youtube_search_page.dart';
 
 class SearchPage extends StatefulWidget {
   const SearchPage({super.key});
 
   @override
-  _SearchPageState createState() => _SearchPageState();
+  State<SearchPage> createState() => _SearchPageState();
 }
 
 class _SearchPageState extends State<SearchPage> {
-  late final WebViewController _controller;
-  bool _isShowingVideo = false;
-  Video? _video;
-
-  @override
-  void initState() {
-    super.initState();
-
-    late final PlatformWebViewControllerCreationParams params;
-    params = const PlatformWebViewControllerCreationParams();
-
-    final WebViewController controller =
-        WebViewController.fromPlatformCreationParams(params);
-
-    controller
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(const Color(0x00000000))
-      ..setNavigationDelegate(
-        NavigationDelegate(
-          onProgress: (int progress) {
-            debugPrint('WebView is loading (progress : $progress%)');
-          },
-          onUrlChange: (change) async {
-            if (change.url!.startsWith('https://m.youtube.com/watch')) {
-              _video = await YoutubeExplode().videos.get(change.url!);
-              _isShowingVideo = true;
-              setState(() {});
-            } else {
-              _isShowingVideo = false;
-              setState(() {});
-            }
-          },
-          onPageStarted: (String url) {
-            debugPrint('Page started loading: $url');
-          },
-          onPageFinished: (String url) {
-            debugPrint('Page finished loading: $url');
-          },
-          onWebResourceError: (WebResourceError error) {
-            debugPrint('''
-              Page resource error:
-                code: ${error.errorCode}
-                description: ${error.description}
-                errorType: ${error.errorType}
-                isForMainFrame: ${error.isForMainFrame}
-            ''');
-          },
-          onNavigationRequest: (NavigationRequest request) {
-            if (request.url.startsWith('https://www.youtube.com/')) {
-              debugPrint('blocking navigation to ${request.url}');
-              return NavigationDecision.prevent;
-            }
-            debugPrint('allowing navigation to ${request.url}');
-            return NavigationDecision.navigate;
-          },
-        ),
-      )
-      ..addJavaScriptChannel(
-        'Toaster',
-        onMessageReceived: (JavaScriptMessage message) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(message.message)),
-          );
-        },
-      )
-      ..loadRequest(Uri.parse('https://www.youtube.com/'));
-
-    _controller = controller;
-  }
-
-  void _saveVideoToPlaylist() async {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => AddVideoPage(ytVideo: _video!)),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Scaffold(
-        body: Stack(
-          children: [
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: -60,
-              child: WebViewWidget(
-                controller: _controller,
-              ),
-            ),
-            AnimatedPositioned(
-              duration: const Duration(milliseconds: 500),
-              curve: Curves.easeInOut,
-              right: _isShowingVideo ? 10 : -140,
-              bottom: 130,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  GestureDetector(
-                    onTap: _onClickPlayBtn,
-                    child: Container(
-                      width: 50,
-                      height: 50,
-                      decoration: const BoxDecoration(
-                        color: Constants.primaryColor,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.play_arrow, color: Colors.black, size: 35),
-                    ),
-                  ),
-              
-                  const SizedBox( height: 10 ),
-              
-                  ElevatedButton(
-                    onPressed: () {
-                      // SAVE IN PLAYLIST
-                      _saveVideoToPlaylist();
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Constants.primaryColor,
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 30, vertical: 12
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                    ),
-                    child: const Text(
-                      'Guardar',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        )
-      ),
-    );
-  }
-
-  void _onClickPlayBtn() async {
-    final videoId = _video!.url.split('v=')[1];
-
-    if (videoController.currentVideo.value?.url == videoId) {
-      videoController.changeCurrentVideoSongPosition(0, play: true);
-      return;
-    }
-
-    // CREATE VIDEO-SONG
-    VideoSong videoSong = VideoSong(
-      url: videoId,
-      title: _video!.title,
-      author: _video!.author,
-      thumbnail: videoController.getVideoThumbnailFromYTUrl(_video!.url).split('vi/')[1],
-      duration: _video!.duration!.inSeconds,
-    );
-
-    // SAVE
-    await videoController.saveOneTimeVideoSong(videoSong);
-
-    // START
-    videoController.startVideoAudio(
-      videoId,
-      prepareNextVideo: false,
-    );
+    return Constants.env == 'dev'
+      ? const NativeSearchPage()
+      : const YoutubeSearchPage();
   }
 }

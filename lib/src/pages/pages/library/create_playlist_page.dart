@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:spotired/src/controllers/playlist_controller.dart';
 import 'package:spotired/src/data/models/playlist/playlist.dart';
-import 'package:spotired/src/pages/data/constants.dart';
+import 'package:spotired/src/data/constants.dart';
 
 class CreatePlaylistPage extends StatefulWidget {
   final int? playlistId;

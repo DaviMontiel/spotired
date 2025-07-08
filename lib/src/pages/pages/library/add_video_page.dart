@@ -3,7 +3,7 @@ import 'package:spotired/src/controllers/playlist_controller.dart';
 import 'package:spotired/src/controllers/video_controller.dart';
 import 'package:spotired/src/data/models/playlist/playlist.dart';
 import 'package:spotired/src/data/models/video/video_song.dart';
-import 'package:spotired/src/pages/data/constants.dart';
+import 'package:spotired/src/data/constants.dart';
 import 'package:spotired/src/pages/pages/library/create_playlist_page.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart' as YT;
 

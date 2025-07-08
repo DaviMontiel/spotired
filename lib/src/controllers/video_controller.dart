@@ -96,6 +96,22 @@ class VideoController with ChangeNotifier {
     saveVideoSongs();
   }
 
+  void importVideoSongs(int playlistId, List<VideoSong> videos) {
+    for (VideoSong videoSong in videos) {
+      // ADD
+      if (_videos.containsKey(videoSong.url)) {
+        getVideoByUrl(videoSong.url)!.playlists.add(playlistId);
+      } else {
+        videoSong.downloaded = false;
+        _videos[videoSong.url] = videoSong;
+        loadImageFromVideoUrl(videoSong.url);
+      }
+    }
+
+    notifyListeners();
+    saveVideoSongs();
+  }
+
   Future<void> saveVideoSongs() async {
     final jsonString = jsonEncode(
       _videos.map((key, value) => MapEntry(key, value.toMap()))
@@ -812,6 +828,21 @@ class VideoController with ChangeNotifier {
 
     // SAVE PENDING-VIDEOS
     dataService.setStringList(SharePreferenceValues.pendingVideos, [..._pendingVideos]);
+  }
+
+  List<VideoSong> getVideosFromPlaylistId(int playlistId) {
+    MiPlayList.Playlist? playlist = playlistController.playlists[playlistId];
+    if (playlist == null) return [];
+
+    List<VideoSong> videos = [];
+    for (int f=0; f<playlist.videos.length; f++) {
+      var videoSong = getVideoByUrl(playlist.videos[f]);
+      if (videoSong == null) continue;
+
+      videos.add(videoSong);
+    }
+
+    return videos;
   }
 
   @override

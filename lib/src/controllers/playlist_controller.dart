@@ -84,6 +84,19 @@ class PlaylistController with ChangeNotifier {
     return playlistId;
   }
 
+  Future<int?> importPlaylist(Playlist playlist) async {
+    final int playlistId = playlists.values.isNotEmpty
+      ? playlists.values.last.id + 1
+      : 0;
+    playlist.id = playlistId;
+
+    _playlists.addAll({ playlistId: playlist });
+    notifyListeners();
+
+    savePlaylists();
+    return playlistId;
+  }
+
   Future<void> removePlaylist(int playlistid, { bool setDelete = true }) async {
     // GET PLAYLIST
     Playlist? playlist = playlists[playlistid];

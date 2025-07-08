@@ -8,7 +8,7 @@ final navigationProvider = NavigationProvider();
 class NavigationProvider with ChangeNotifier {
   // DATA
   final Map<NavigationPagesEnum, dynamic> _pages = {
-    NavigationPagesEnum.search: SearchPage(),
+    NavigationPagesEnum.search: const SearchPage(),
     NavigationPagesEnum.library: const LibraryPage(),
   };
 

@@ -1,10 +1,13 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:spotired/src/controllers/playlist_controller.dart';
 import 'package:spotired/src/controllers/video_controller.dart';
+import 'package:spotired/src/data/models/playlist/playlist.dart';
 import 'package:spotired/src/data/models/video/video_song.dart';
-import 'package:spotired/src/pages/data/constants.dart';
+import 'package:spotired/src/data/constants.dart';
 import 'package:spotired/src/pages/pages/library/add_video_page.dart';
 import 'package:spotired/src/pages/pages/library/create_playlist_page.dart';
 import 'package:spotired/src/pages/pages/library/import_playlist_page.dart';
@@ -20,8 +23,14 @@ class ModalBottomMenu {
         'event': () => _openPage(context, const CreatePlaylistPage()),
       },
       {
+        'icon': Icons.sim_card_download_outlined,
+        'text': 'Importar lista manual',
+        'description': 'Agrega una playlist con los datos exportados.',
+        'event': () => _showPastePlaylistDialog(context),
+      },
+      {
         'icon': Icons.slow_motion_video_outlined,
-        'text': 'Importar de Youtube',
+        'text': 'Importar lista de Youtube',
         'description': 'Agrega una playlist desde un enlace de YouTube',
         'event': () => _openPage(context, const ImportPlaylistPage()),
       },
@@ -113,6 +122,11 @@ class ModalBottomMenu {
         'icon': Icons.edit_note_rounded,
         'text': 'Cambiar nombre',
         'event': () => _changePlaylistName(context, playlistid),
+      },
+      {
+        'icon': Icons.copy_rounded,
+        'text': 'Exportar',
+        'event': () => _exportPlaylist(context, playlistid),
       },
       {
         'icon': Icons.close,
@@ -214,18 +228,20 @@ class ModalBottomMenu {
     );
   }
 
-  videoSongMenu(BuildContext context, int playlistid, VideoSong videoSong) {
+  videoSongMenu(BuildContext context, int? playlistid, VideoSong videoSong) {
     final List<dynamic> btns = [
       {
         'icon': Icons.add_circle_outline,
         'text': 'Añadir a la lista',
         'event': () => _addToPlaylists(context, videoSong.url),
       },
+      if (playlistid != null)
       {
         'icon': Icons.format_list_bulleted_add,
         'text': 'Agregar a la cola',
         'event': () => addVideoToQueue(context, videoSong.url),
       },
+      if (playlistid != null)
       {
         'icon': Icons.close,
         'text': 'Eliminar de la playlist',
@@ -234,7 +250,7 @@ class ModalBottomMenu {
     ];
 
     // VIDEO-SONG IMG
-    String cachedImage = videoController.getVideoImageFromUrl(videoSong.url)!;
+    String? cachedImage = videoController.getVideoImageFromUrl(videoSong.url);
 
     return showModalBottomSheet(
       context: context,
@@ -283,7 +299,9 @@ class ModalBottomMenu {
                                       bottom: -12,
                                       left: -15,
                                       right: -15,
-                                      child: Image.file(File.fromUri(Uri.file(cachedImage)), fit: BoxFit.scaleDown),
+                                      child: cachedImage == null
+                                        ? Image.network(videoSong.thumbnail, fit: BoxFit.scaleDown)
+                                        : Image.file(File.fromUri(Uri.file(cachedImage)), fit: BoxFit.scaleDown),
                                     )
                                   ],
                                 ),
@@ -412,6 +430,32 @@ class ModalBottomMenu {
     Navigator.pop(context);
   }
 
+  _exportPlaylist(BuildContext context, int playlistid) {
+    Navigator.pop(context);
+
+    Playlist playlist = playlistController.playlists[playlistid]!;
+    List<VideoSong> videoSongs = videoController.getVideosFromPlaylistId(playlistid);
+    String data = jsonEncode({
+      'playlist': playlist.toMap(),
+      'videos': videoSongs.map((v) => v.toMap()).toList(),
+    });
+
+    // TO BASE64
+    String base64EncodedData = base64Encode(utf8.encode(data));
+
+    // SAVE
+    Clipboard.setData(ClipboardData(text: base64EncodedData));
+
+    // SHOW MSG
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Center(
+          child: Text("Playlist copiada ✅"),
+        ),
+      ),
+    );
+  }
+
   _changePlaylistName(BuildContext context, int playlistid) {
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
@@ -455,5 +499,116 @@ class ModalBottomMenu {
     Navigator.pop(context);
     await playlistController.disablePlaylistAutoDownloads(playlistId);
     await playlistController.removeDownloadedSongsFromPlaylist(playlistId);
+  }
+
+  void _showPastePlaylistDialog(BuildContext context) {
+    Navigator.pop(context);
+
+    final focusNode = FocusNode();
+    final tfController = TextEditingController();
+
+    focusNode.requestFocus();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          contentPadding: const EdgeInsets.all(20),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          backgroundColor: const Color.fromRGBO(31, 31, 31, 1),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Pega aquí el enlace de la playlist copiada:',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: Colors.white
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: tfController,
+                focusNode: focusNode,
+                style: const TextStyle(
+                  color: Color.fromRGBO(191, 191, 191, 1),
+                ),
+                decoration: InputDecoration(
+                  floatingLabelBehavior: FloatingLabelBehavior.never,
+                  hintText: 'Pegar aqui',
+                  labelStyle: const TextStyle(
+                    color: Color.fromRGBO(191, 191, 191, 1),
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(30.0),
+                    borderSide: const BorderSide(
+                      color: Color.fromRGBO(191, 191, 191, 1),
+                      width: 1.0,
+                    ),
+                  ),
+                  focusedBorder: const OutlineInputBorder(
+                    borderSide: BorderSide(
+                      color: Color.fromRGBO(191, 191, 191, 1),
+                      width: 2,
+                    ),
+                  ),
+                  enabledBorder: const OutlineInputBorder(
+                    borderSide: BorderSide(
+                      color: Color.fromRGBO(191, 191, 191, 1),
+                      width: 1.0,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () => _importPlaylist(context, tfController.text.trim()),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: Colors.black,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 30, vertical: 12
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
+              ),
+              child: Text(
+                'Importar',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _importPlaylist(BuildContext context, String data) {
+    Navigator.pop(context);
+
+    // TO BASE64
+    String jsonStr = utf8.decode(base64Decode(data));
+
+    // TO MAP
+    Map<String, dynamic> dataMap = jsonDecode(jsonStr);
+
+    // PLAYLIST
+    Playlist playlist = Playlist.fromMap(dataMap['playlist']);
+    playlist.downloadVideos = false;
+
+    List<VideoSong> videoSongs = (dataMap['videos'] as List)
+      .map((v) => VideoSong.fromMap(v))
+      .toList();
+
+    // SAVE
+    playlistController.importPlaylist(playlist);
+    videoController.importVideoSongs(playlist.id, videoSongs);
   }
 }

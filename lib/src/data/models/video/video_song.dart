@@ -41,6 +41,20 @@ class VideoSong {
     );
   }
 
+  static VideoSong fromYoutubeSearchJson(Map<String, dynamic> json) {
+    final idObj = json['id'] as Map<String, dynamic>;
+    final snippet = json['snippet'] as Map<String, dynamic>;
+
+    return VideoSong(
+      url: idObj['videoId'] as String,
+      title: snippet['title'] as String,
+      author: snippet['channelTitle'] as String,
+      thumbnail: (snippet['thumbnails']['default'] ??
+        snippet['thumbnails']['high'])['url'] as String,
+      duration: 0,
+    );
+  }
+
   copy() {
     final map = toMap();
     return fromMap(map);

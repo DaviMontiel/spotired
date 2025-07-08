@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:spotired/src/controllers/access_controller.dart';
 import 'package:spotired/src/pages/access_page.dart';
-import 'package:spotired/src/pages/data/constants.dart';
+import 'package:spotired/src/data/constants.dart';
 import 'package:spotired/src/pages/navigation.dart';
 
 class MyApp extends StatelessWidget {
