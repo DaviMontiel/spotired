@@ -1,20 +1,19 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
-import 'package:palette_generator/palette_generator.dart';
+import 'package:palette_generator_master/palette_generator_master.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:spotired/src/controllers/playlist_controller.dart';
 import 'package:spotired/src/data/models/shared_preferences/enums/share_preference_values.enum.dart';
 import 'package:spotired/src/data/models/video/enums/video_song_status.dart';
 import 'package:spotired/src/data/models/video/video_song.dart';
 import 'package:spotired/src/data/services/data_service.dart';
-import 'package:youtube_explode_dart/youtube_explode_dart.dart';
+import 'package:spotired/src/data/services/youtube_audio_service.dart';
 import 'package:spotired/src/data/models/playlist/playlist.dart' as MiPlayList;
 import 'package:http/http.dart' as http;
 
@@ -103,6 +102,7 @@ class VideoController with ChangeNotifier {
         getVideoByUrl(videoSong.url)!.playlists.add(playlistId);
       } else {
         videoSong.downloaded = false;
+        videoSong.playlists.add(playlistId);
         _videos[videoSong.url] = videoSong;
         loadImageFromVideoUrl(videoSong.url);
       }
@@ -491,17 +491,20 @@ class VideoController with ChangeNotifier {
   }
 
   Future<void> downloadVideoSong(VideoSong videoSong) async {
-    String? audioUrl;
+    ResolvedAudio? resolved;
     bool exit = false;
 
     while (!exit) {
       try {
         if (downloadVideosProgress[videoSong.url] != null) return;
+        if (videoSong.downloaded) return;
 
         // GET VIDEO-URL
-        audioUrl ??= await _getFinalUrlByYTUrl(videoSong.url);
-        if (audioUrl == null) return;
-        if (videoSong.downloaded) return;
+        ResolvedAudio audio = resolved ?? await youtubeAudioService.resolve(videoSong.url);
+        if (audio.isExpired) {
+          audio = await youtubeAudioService.resolve(videoSong.url);
+        }
+        resolved = audio;
 
         // GET DIR TO SAVE
         final dir = await getApplicationDocumentsDirectory();
@@ -519,7 +522,8 @@ class VideoController with ChangeNotifier {
         notifyListeners();
 
         // Configurar solicitud con Range header si hay datos
-        final request = http.Request('GET', Uri.parse(audioUrl));
+        final request = http.Request('GET', Uri.parse(audio.url));
+        request.headers.addAll(audio.headers);
         request.headers['Range'] = 'bytes=$downloadedLength-';
 
         final response = await request.send();
@@ -591,6 +595,8 @@ class VideoController with ChangeNotifier {
         await completer.future;
         exit = true;
       } catch (e) {
+        debugPrint('Fallo descargando ${videoSong.url}: $e');
+        resolved = null; // fuerza resolver una URL nueva en el siguiente intento
         downloadVideosProgress.remove(videoSong.url);
         await Future.delayed(const Duration(seconds: 3)); // Espera antes de reintentar
       }
@@ -621,11 +627,11 @@ class VideoController with ChangeNotifier {
       }
 
       // USE YT STREAM
-      String? audioUrl = await _getFinalUrlByYTUrl(videoSong.url);
-      if (audioUrl == null) return null;
+      final ResolvedAudio audio = await youtubeAudioService.resolve(videoSong.url);
 
       final audioSource = AudioSource.uri(
-        Uri.parse(audioUrl),
+        Uri.parse(audio.url),
+        headers: audio.headersOrNull,
         tag: MediaItem(
           id: videoSong.url,
           title: videoSong.title,
@@ -638,6 +644,7 @@ class VideoController with ChangeNotifier {
 
       return audioSource;
     } catch (ex) {
+      debugPrint('Fallo preparando el audio de ${videoSong.url}: $ex');
       videoSongStatus.value = VideoSongStatus.paused;
       _error = true;
       return null;
@@ -672,22 +679,6 @@ class VideoController with ChangeNotifier {
 
     // Agregar el audio a la playlist
     playlistSource.add(audioSource);
-  }
-
-  Future<String?> _getFinalUrlByYTUrl(String videoUrl) async {
-    return await Isolate.run(() async {
-      final YoutubeExplode yt = YoutubeExplode();
-      try {
-        // GET YT VIDEO MANIFEST
-        final manifest = await yt.videos.streams.getManifest(videoUrl, ytClients: [ YoutubeApiClient.androidVr ]);
-        final audioStream = manifest.audioOnly.withHighestBitrate();
-        final audioUrl = audioStream.url.toString();
-
-        return audioUrl;
-      } finally {
-        yt.close();
-      }
-    });
   }
 
   Future<void> _prepareCurrentVideo() async {
@@ -788,7 +779,7 @@ class VideoController with ChangeNotifier {
       await completer.future;
 
       // GET COLOR
-      final PaletteGenerator paletteGenerator = await PaletteGenerator.fromImageProvider(
+      final PaletteGeneratorMaster paletteGenerator = await PaletteGeneratorMaster.fromImageProvider(
         imageProvider,
         size: const Size(200, 100),
       );

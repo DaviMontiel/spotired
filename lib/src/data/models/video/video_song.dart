@@ -29,6 +29,17 @@ class VideoSong {
     };
   }
 
+  toExportMap() {
+    return {
+      'url': url,
+      'title': title,
+      'author': author,
+      'thumbnail': thumbnail,
+      'duration': duration,
+      'downloaded': downloaded,
+    };
+  }
+
   static VideoSong fromMap(Map<String, dynamic> map) {
     return VideoSong(
       url: map['url'],
@@ -37,6 +48,18 @@ class VideoSong {
       thumbnail: map['thumbnail'],
       duration: map['duration'],
       playlists: List<int>.from(map['playlists'] ?? []),
+      downloaded: map['downloaded'] ?? false,
+    );
+  }
+
+  static VideoSong fromExportMap(Map<String, dynamic> map) {
+    return VideoSong(
+      url: map['url'],
+      title: map['title'],
+      author: map['author'],
+      thumbnail: map['thumbnail'],
+      duration: map['duration'],
+      playlists: List<int>.from([]),
       downloaded: map['downloaded'] ?? false,
     );
   }

@@ -10,6 +10,7 @@ import 'package:spotired/src/data/models/video/video_song.dart';
 import 'package:spotired/src/pages/data/enums/navigation_pages.enum.dart';
 import 'package:spotired/src/pages/data/providers/navitation_provider.dart';
 import 'package:spotired/src/pages/pages/library/add_video_page.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
 class Navigation extends StatefulWidget {
@@ -54,6 +55,8 @@ class _NavigationState extends State<Navigation> {
 
   @override
   Widget build(BuildContext context) {
+    final double systemBottomInset = MediaQuery.viewPaddingOf(context).bottom;
+
     return Scaffold(
       backgroundColor: Colors.black,
       extendBody: true,
@@ -123,7 +126,7 @@ class _NavigationState extends State<Navigation> {
                                 left: 0,
                                 right: 0,
                                 bottom: value != null
-                                  ? 60
+                                  ? 60 + systemBottomInset
                                   : -60,
                                 child: Padding(
                                   padding: const EdgeInsets.only(left: 5, right: 5),
@@ -146,30 +149,33 @@ class _NavigationState extends State<Navigation> {
                                               child: Row(
                                                 children: [
                                                   // SONG IMG
-                                                  Container(
-                                                    width: 42,
-                                                    height: 42,
-                                                    decoration: const BoxDecoration(
-                                                      borderRadius: BorderRadius.all(Radius.circular(5)),
-                                                      color: Color.fromRGBO(35, 35, 35, 1),
-                                                    ),
-                                                    child: value == null
-                                                      ? const SizedBox()
-                                                      : ClipRRect(
-                                                        borderRadius: BorderRadius.circular(5),
-                                                        child: Stack(
-                                                          children: [
-                                                            Positioned(
-                                                              top: -8,
-                                                              bottom: -8,
-                                                              left: -18,
-                                                              child: cachedImage == null
-                                                                ? const SizedBox()
-                                                                : Image.file(File.fromUri(Uri.file(cachedImage))),
-                                                            )
-                                                          ],
-                                                        ),
+                                                  GestureDetector(
+                                                    onTap: () => _onTapSongImage(value?.url),
+                                                    child: Container(
+                                                      width: 42,
+                                                      height: 42,
+                                                      decoration: const BoxDecoration(
+                                                        borderRadius: BorderRadius.all(Radius.circular(5)),
+                                                        color: Color.fromRGBO(35, 35, 35, 1),
                                                       ),
+                                                      child: value == null
+                                                        ? const SizedBox()
+                                                        : ClipRRect(
+                                                          borderRadius: BorderRadius.circular(5),
+                                                          child: Stack(
+                                                            children: [
+                                                              Positioned(
+                                                                top: -8,
+                                                                bottom: -8,
+                                                                left: -18,
+                                                                child: cachedImage == null
+                                                                  ? const SizedBox()
+                                                                  : Image.file(File.fromUri(Uri.file(cachedImage))),
+                                                              )
+                                                            ],
+                                                          ),
+                                                        ),
+                                                    ),
                                                   ),
                           
                                                   const SizedBox(width: 13),
@@ -325,7 +331,7 @@ class _NavigationState extends State<Navigation> {
                       Positioned(
                         left: 0,
                         right: 0,
-                        bottom: 5,
+                        bottom: 5 + systemBottomInset,
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceAround,
                           children: [
@@ -419,6 +425,15 @@ class _NavigationState extends State<Navigation> {
   bool _isDarkColor(Color color) {
     final double luminance = (0.299 * color.red + 0.587 * color.green + 0.114 * color.blue) / 255;
     return luminance < 0.5; // Si es menor, el color es oscuro
+  }
+
+  void _onTapSongImage(String? videoId) {
+    if (videoId == null) return;
+
+    launchUrl(
+      Uri.parse('https://www.youtube.com/watch?v=$videoId'),
+      mode: LaunchMode.externalApplication,
+    );
   }
 
   @override

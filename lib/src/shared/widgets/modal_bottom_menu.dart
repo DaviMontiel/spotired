@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:spotired/src/controllers/playlist_controller.dart';
@@ -35,6 +36,8 @@ class ModalBottomMenu {
         'event': () => _openPage(context, const ImportPlaylistPage()),
       },
     ];
+    
+    final double systemBottomInset = MediaQuery.viewPaddingOf(context).bottom;
 
     return showModalBottomSheet(
       context: context,
@@ -45,7 +48,7 @@ class ModalBottomMenu {
       ),
       builder: (BuildContext context) {
         return Padding(
-          padding: const EdgeInsets.only(top: 10),
+          padding: EdgeInsets.only(top: 10, bottom: systemBottomInset),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -83,6 +86,8 @@ class ModalBottomMenu {
       },
     ];
 
+    final double systemBottomInset = MediaQuery.viewPaddingOf(context).bottom;
+
     return showModalBottomSheet(
       context: context,
       isScrollControlled: false,
@@ -92,7 +97,7 @@ class ModalBottomMenu {
       ),
       builder: (BuildContext context) {
         return Padding(
-          padding: const EdgeInsets.only(top: 10),
+          padding: EdgeInsets.only(top: 10, bottom: systemBottomInset),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -135,12 +140,14 @@ class ModalBottomMenu {
       },
     ];
 
+    final double systemBottomInset = MediaQuery.viewPaddingOf(context).bottom;
+
     return showModalBottomSheet(
       context: context,
       backgroundColor: const Color.fromRGBO(31, 31, 31, 1),
       builder: (BuildContext context) {
         return Padding(
-          padding: const EdgeInsets.only(top: 10),
+          padding: EdgeInsets.only(top: 10, bottom: systemBottomInset),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -249,6 +256,8 @@ class ModalBottomMenu {
       },
     ];
 
+    final double systemBottomInset = MediaQuery.viewPaddingOf(context).bottom;
+
     // VIDEO-SONG IMG
     String? cachedImage = videoController.getVideoImageFromUrl(videoSong.url);
 
@@ -257,7 +266,7 @@ class ModalBottomMenu {
       backgroundColor: const Color.fromRGBO(31, 31, 31, 1),
       builder: (BuildContext context) {
         return Padding(
-          padding: const EdgeInsets.only(top: 10),
+          padding: EdgeInsets.only(top: 10, bottom: systemBottomInset),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -437,7 +446,7 @@ class ModalBottomMenu {
     List<VideoSong> videoSongs = videoController.getVideosFromPlaylistId(playlistid);
     String data = jsonEncode({
       'playlist': playlist.toMap(),
-      'videos': videoSongs.map((v) => v.toMap()).toList(),
+      'videos': videoSongs.map((v) => v.toExportMap()).toList(),
     });
 
     // TO BASE64
@@ -486,7 +495,7 @@ class ModalBottomMenu {
   _addToPlaylists(BuildContext context, String url) {
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => AddVideoPage(videoSongUrl: url)),
+      CupertinoPageRoute(builder: (context) => AddVideoPage(videoSongUrl: url)),
     );
   }
 
@@ -520,7 +529,7 @@ class ModalBottomMenu {
             mainAxisSize: MainAxisSize.min,
             children: [
               const Text(
-                'Pega aquí el enlace de la playlist copiada:',
+                'Pega aquí los datos de la playlist copiada:',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 16,
@@ -576,9 +585,9 @@ class ModalBottomMenu {
                   borderRadius: BorderRadius.circular(30),
                 ),
               ),
-              child: Text(
+              child: const Text(
                 'Importar',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
@@ -604,11 +613,11 @@ class ModalBottomMenu {
     playlist.downloadVideos = false;
 
     List<VideoSong> videoSongs = (dataMap['videos'] as List)
-      .map((v) => VideoSong.fromMap(v))
+      .map((v) => VideoSong.fromExportMap(v))
       .toList();
 
     // SAVE
-    playlistController.importPlaylist(playlist);
-    videoController.importVideoSongs(playlist.id, videoSongs);
+    int playlistId = playlistController.importPlaylist(playlist);
+    videoController.importVideoSongs(playlistId, videoSongs);
   }
 }

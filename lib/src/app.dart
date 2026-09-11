@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:spotired/src/controllers/access_controller.dart';
 import 'package:spotired/src/pages/access_page.dart';
 import 'package:spotired/src/data/constants.dart';
@@ -9,22 +10,28 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Spotired',
-      theme: ThemeData(
-        textSelectionTheme: const TextSelectionThemeData(
-          selectionColor: Constants.secondaryColor,
-          cursorColor: Constants.secondaryColor,
-          selectionHandleColor: Constants.secondaryColor,
-        ),
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarIconBrightness: Brightness.light,
+        systemNavigationBarIconBrightness: Brightness.light,
       ),
-      home: ValueListenableBuilder<bool>(
-        valueListenable: accessController.haveAccess,
-        builder: (context, haveAccess, child) {
-          return haveAccess
-            ? const Navigation()
-            : const AccessPage();
-        }
+      child: MaterialApp(
+        title: 'Spotired',
+        theme: ThemeData(
+          textSelectionTheme: const TextSelectionThemeData(
+            selectionColor: Constants.secondaryColor,
+            cursorColor: Constants.secondaryColor,
+            selectionHandleColor: Constants.secondaryColor,
+          ),
+        ),
+        home: ValueListenableBuilder<bool>(
+          valueListenable: accessController.haveAccess,
+          builder: (context, haveAccess, child) {
+            return haveAccess
+              ? const Navigation()
+              : const AccessPage();
+          }
+        ),
       ),
     );
   }

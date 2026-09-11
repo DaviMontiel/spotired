@@ -4,38 +4,44 @@ plugins {
     id "dev.flutter.flutter-gradle-plugin"
 }
 
+def appVersionName = flutter.versionName
+
 android {
     namespace = "com.david.spotired"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_1_8
+        jvmTarget = JavaVersion.VERSION_17
     }
 
     defaultConfig {
         applicationId = "com.david.spotired"
-        minSdk = 21
+        minSdkVersion = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
 
-    applicationVariants.all { variant ->
-        variant.outputs.all {
-            def versionName = variant.versionName
-            outputFileName = "Spotired-v${versionName}.apk"
-        }
-    }
-
     buildTypes {
         release {
             signingConfig = signingConfigs.debug
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+androidComponents {
+    onVariants(selector().all()) { variant ->
+        variant.outputs.each { output ->
+            output.outputFileName.set(
+                "Spotired-v${appVersionName}.apk"
+            )
         }
     }
 }

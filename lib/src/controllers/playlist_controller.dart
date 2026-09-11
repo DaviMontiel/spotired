@@ -84,7 +84,7 @@ class PlaylistController with ChangeNotifier {
     return playlistId;
   }
 
-  Future<int?> importPlaylist(Playlist playlist) async {
+  int importPlaylist(Playlist playlist) {
     final int playlistId = playlists.values.isNotEmpty
       ? playlists.values.last.id + 1
       : 0;
