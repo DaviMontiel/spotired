@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:spotired/src/controllers/video_controller.dart';
@@ -29,6 +30,11 @@ class _NativeSearchSearchPageState extends State<NativeSearchSearchPage> {
   final List<VideoSong> _videos = [];
   String? _nextPageToken;
   bool _isLoading = false;
+  bool _localSearch = false;
+  final List<VideoSong> _localVideos = [];
+
+  // ACTIVE RESULTS
+  List<VideoSong> get _results => _localSearch ? _localVideos : _videos;
 
   // STATUS
   bool _isLoadingSong = false;
@@ -56,6 +62,7 @@ class _NativeSearchSearchPageState extends State<NativeSearchSearchPage> {
       final thresholdReached = _scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200;
       if (
         thresholdReached &&
+        !_localSearch &&
         !_isLoading &&
         _nextPageToken != null &&
         _tfController.text.trim().isNotEmpty)
@@ -73,6 +80,8 @@ class _NativeSearchSearchPageState extends State<NativeSearchSearchPage> {
         child: Column(
           children: [
             _searchBar(),
+
+            _searchScopeToggle(),
 
             Expanded(
               child: GestureDetector(
@@ -98,6 +107,10 @@ class _NativeSearchSearchPageState extends State<NativeSearchSearchPage> {
                         );
                       }
 
+                      if (_results.isEmpty && !_isLoading && _tfController.text.trim().isNotEmpty) {
+                        return _emptyState();
+                      }
+
                       return NotificationListener<ScrollNotification>(
                         onNotification: (_) {
                           _focusNode.unfocus();
@@ -105,9 +118,9 @@ class _NativeSearchSearchPageState extends State<NativeSearchSearchPage> {
                         },
                         child: ListView.builder(
                           controller: _scrollController,
-                          itemCount: _videos.length + (_isLoading ? 1 : 0),
+                          itemCount: _results.length + (_isLoading ? 1 : 0),
                           itemBuilder: (context, index) {
-                            if (index >= _videos.length) {
+                            if (index >= _results.length) {
                               return const Padding(
                                 padding: EdgeInsets.symmetric(vertical: 25),
                                 child: Center(
@@ -117,7 +130,7 @@ class _NativeSearchSearchPageState extends State<NativeSearchSearchPage> {
                                 ),
                               );
                             }
-                            final video = _videos[index];
+                            final video = _results[index];
                             return _videoTile(video);
                           },
                         ),
@@ -167,7 +180,7 @@ class _NativeSearchSearchPageState extends State<NativeSearchSearchPage> {
                                   top: -8,
                                   bottom: -8,
                                   left: -19.4,
-                                  child: Image.network(videoSong.thumbnail)
+                                  child: _thumbnail(videoSong)
                                 )
                               ],
                             ),
@@ -268,10 +281,12 @@ class _NativeSearchSearchPageState extends State<NativeSearchSearchPage> {
               style: const TextStyle(
                 color: Constants.primaryColor,
               ),
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 floatingLabelBehavior: FloatingLabelBehavior.never,
-                hintText: '¿Qué te apetece escuchar?',
-                hintStyle: TextStyle(
+                hintText: _localSearch
+                  ? 'Buscar en tus canciones'
+                  : '¿Qué te apetece escuchar?',
+                hintStyle: const TextStyle(
                   color: Color.fromRGBO(191, 191, 191, 1),
                   fontWeight: FontWeight.normal,
                 ),
@@ -285,6 +300,101 @@ class _NativeSearchSearchPageState extends State<NativeSearchSearchPage> {
         ],
       ),
     );
+  }
+
+  Widget _searchScopeToggle() {
+    return Container(
+      color: const Color.fromRGBO(42, 42, 42, 1),
+      padding: const EdgeInsets.only(left: 55, right: 20, bottom: 12),
+      child: Row(
+        children: [
+          _scopeChip(
+            label: 'YouTube',
+            isSelected: !_localSearch,
+            onTap: () => _changeScope(false),
+          ),
+
+          const SizedBox( width: 10 ),
+
+          _scopeChip(
+            label: 'Tus canciones',
+            isSelected: _localSearch,
+            onTap: () => _changeScope(true),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _scopeChip({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.only(left: 14, right: 14, top: 7, bottom: 7),
+        decoration: BoxDecoration(
+          color: isSelected
+            ? Constants.primaryColor
+            : const Color.fromRGBO(70, 70, 70, 1),
+          borderRadius: const BorderRadius.all(Radius.circular(20)),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected
+              ? Colors.white
+              : const Color.fromRGBO(220, 220, 220, 1),
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _emptyState() {
+    return Padding(
+      padding: const EdgeInsets.only(left: 30, right: 30, top: 40),
+      child: Text(
+        _localSearch
+          ? 'Ninguna de tus canciones coincide con la búsqueda.'
+          : 'Sin resultados.',
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+          fontSize: 15,
+          color: Color.fromRGBO(255, 255, 255, 0.7),
+        ),
+      ),
+    );
+  }
+
+  /// Los resultados de YouTube traen la URL completa de la miniatura; las
+  /// canciones guardadas solo el fragmento, y normalmente ya la tienen
+  /// cacheada en disco.
+  Widget _thumbnail(VideoSong videoSong) {
+    if (!_localSearch) return Image.network(videoSong.thumbnail);
+
+    final String? cachedImage = videoController.getVideoImageFromUrl(videoSong.url);
+    if (cachedImage == null) {
+      videoController.loadImageFromVideoUrl(videoSong.url);
+      return Image.network(videoController.construyeVideoThumbnail(videoSong.thumbnail));
+    }
+
+    return Image.file(File.fromUri(Uri.file(cachedImage)));
+  }
+
+  void _changeScope(bool localSearch) {
+    if (_localSearch == localSearch) return;
+
+    setState(() {
+      _localSearch = localSearch;
+      _textError = null;
+    });
+
+    _runSearch(_tfController.text.trim());
   }
 
   @override
@@ -303,16 +413,36 @@ class _NativeSearchSearchPageState extends State<NativeSearchSearchPage> {
 
   void _onQueryChanged() {
     _debounce?.cancel();
+
+    // La busqueda local es un filtro en memoria: no necesita debounce.
+    if (_localSearch) {
+      _runSearch(_tfController.text.trim());
+      return;
+    }
+
     _debounce = Timer(const Duration(milliseconds: _debounceMs), () {
-      final query = _tfController.text.trim();
-      if (query.isNotEmpty) {
-        _search(query, append: false);
-      } else {
-        setState(() {
-          _videos.clear();
-          _nextPageToken = null;
-        });
-      }
+      _runSearch(_tfController.text.trim());
+    });
+  }
+
+  void _runSearch(String query) {
+    if (_localSearch) {
+      setState(() {
+        _localVideos
+          ..clear()
+          ..addAll(videoController.searchLocalVideoSongs(query));
+      });
+      return;
+    }
+
+    if (query.isNotEmpty) {
+      _search(query, append: false);
+      return;
+    }
+
+    setState(() {
+      _videos.clear();
+      _nextPageToken = null;
     });
   }
 
@@ -364,6 +494,12 @@ class _NativeSearchSearchPageState extends State<NativeSearchSearchPage> {
 
     if (videoController.currentVideo.value?.url == video.url) {
       videoController.changeCurrentVideoSongPosition(0, play: true);
+      _isLoadingSong = false;
+      return;
+    }
+
+    if (_localSearch) {
+      videoController.startVideoAudio(video.url);
       _isLoadingSong = false;
       return;
     }

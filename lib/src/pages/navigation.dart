@@ -10,6 +10,7 @@ import 'package:spotired/src/data/models/video/video_song.dart';
 import 'package:spotired/src/pages/data/enums/navigation_pages.enum.dart';
 import 'package:spotired/src/pages/data/providers/navitation_provider.dart';
 import 'package:spotired/src/pages/pages/library/add_video_page.dart';
+import 'package:spotired/src/pages/pages/player_page.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
@@ -60,12 +61,18 @@ class _NavigationState extends State<Navigation> {
     return Scaffold(
       backgroundColor: Colors.black,
       extendBody: true,
-      body: WillPopScope(
-        onWillPop: () async {
-          if (navigationProvider.isInRoot) return true;
+      body: ListenableBuilder(
+        listenable: navigationProvider.currentScreen,
+        builder: (context, child) {
+          return PopScope(
+            canPop: navigationProvider.isInRoot,
+            onPopInvokedWithResult: (bool didPop, Object? result) {
+              if (didPop) return;
 
-          navigationProvider.goToNavigationRootPage();
-          return false;
+              navigationProvider.goToNavigationRootPage();
+            },
+            child: child!,
+          );
         },
         child: ListenableBuilder(
             listenable: navigationProvider,
@@ -128,7 +135,12 @@ class _NavigationState extends State<Navigation> {
                                 bottom: value != null
                                   ? 60 + systemBottomInset
                                   : -60,
-                                child: Padding(
+                                child: GestureDetector(
+                                  behavior: HitTestBehavior.opaque,
+                                  onTap: value == null
+                                    ? null
+                                    : () => Navigator.of(context).push(PlayerPage.route()),
+                                  child: Padding(
                                   padding: const EdgeInsets.only(left: 5, right: 5),
                                   child: AnimatedContainer(
                                     duration: const Duration(milliseconds: 500),
@@ -320,6 +332,7 @@ class _NavigationState extends State<Navigation> {
                                       ],
                                     ),
                                   ),
+                                ),
                                 ),
                               );
                             },

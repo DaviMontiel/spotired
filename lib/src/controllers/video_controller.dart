@@ -40,6 +40,9 @@ class VideoController with ChangeNotifier {
   bool _normalSecuence = true;
   bool _error = true;
 
+  bool get hasNextVideo => audioPlayer.hasNext;
+  bool get hasPreviousVideo => audioPlayer.hasPrevious;
+
   StreamSubscription<PlayerState>? _audioPlayerSubscription;
   StreamSubscription<SequenceState?>? _sequenceStateStream;
   StreamSubscription<int?>? _currentIndexStream;
@@ -286,6 +289,26 @@ class VideoController with ChangeNotifier {
 
     notifyListeners();
   }
+
+  Future<void> playNextVideo() async {
+    if (!audioPlayer.hasNext) return;
+
+    await audioPlayer.seekToNext();
+    await audioPlayer.play();
+  }
+
+  Future<void> playPreviousVideo() async {
+    if (currentPosition.value > _restartInsteadOfPreviousSeconds || !audioPlayer.hasPrevious) {
+      await audioPlayer.seek(Duration.zero);
+      await audioPlayer.play();
+      return;
+    }
+
+    await audioPlayer.seekToPrevious();
+    await audioPlayer.play();
+  }
+
+  static const int _restartInsteadOfPreviousSeconds = 3;
 
   void changeCurrentVideoSongPosition(int second, { bool play = false }) {
     audioPlayer.seek(Duration(seconds: second));
@@ -819,6 +842,47 @@ class VideoController with ChangeNotifier {
 
     // SAVE PENDING-VIDEOS
     dataService.setStringList(SharePreferenceValues.pendingVideos, [..._pendingVideos]);
+  }
+
+  List<VideoSong> searchLocalVideoSongs(String query) {
+    final String normalizedQuery = _normalizeForSearch(query);
+    if (normalizedQuery.isEmpty) return <VideoSong>[];
+
+    final List<VideoSong> results = _videos.values.where((videoSong) {
+      return _normalizeForSearch(videoSong.title).contains(normalizedQuery) ||
+        _normalizeForSearch(videoSong.author).contains(normalizedQuery);
+    }).toList();
+
+    // Primero lo que empieza por lo buscado, luego el resto de coincidencias
+    // en el titulo, y al final las que solo coinciden por autor.
+    results.sort((a, b) {
+      final int scoreA = _searchScore(a, normalizedQuery);
+      final int scoreB = _searchScore(b, normalizedQuery);
+      if (scoreA != scoreB) return scoreA.compareTo(scoreB);
+
+      return _normalizeForSearch(a.title).compareTo(_normalizeForSearch(b.title));
+    });
+
+    return results;
+  }
+
+  int _searchScore(VideoSong videoSong, String normalizedQuery) {
+    final String title = _normalizeForSearch(videoSong.title);
+    if (title.startsWith(normalizedQuery)) return 0;
+    if (title.contains(normalizedQuery)) return 1;
+    return 2;
+  }
+
+  String _normalizeForSearch(String value) {
+    const String accented = 'aaaaaeeeeiiiiooooouuuunc';
+    const String accents = 'áàäâãéèëêíìïîóòöôõúùüûñç';
+
+    String result = value.toLowerCase().trim();
+    for (int i = 0; i < accents.length; i++) {
+      result = result.replaceAll(accents[i], accented[i]);
+    }
+
+    return result;
   }
 
   List<VideoSong> getVideosFromPlaylistId(int playlistId) {
