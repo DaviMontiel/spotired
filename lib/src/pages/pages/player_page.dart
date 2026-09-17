@@ -171,13 +171,21 @@ class _PlayerPageState extends State<PlayerPage> {
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: cachedImage == null
-              ? const SizedBox.expand()
-              : Image.file(
+            child: cachedImage != null
+              ? Image.file(
                   File.fromUri(Uri.file(cachedImage)),
                   fit: BoxFit.cover,
                   width: double.infinity,
                   height: double.infinity,
+                )
+              : Image.network(
+                  videoController.construyeVideoThumbnail(videoSong.thumbnail),
+                  fit: BoxFit.cover,
+                  width: double.infinity,
+                  height: double.infinity,
+                  errorBuilder: (context, error, stackTrace) {
+                    return const SizedBox.expand();
+                  },
                 ),
           ),
         ),

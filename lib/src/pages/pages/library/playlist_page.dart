@@ -6,6 +6,7 @@ import 'package:spotired/src/controllers/video_controller.dart';
 import 'package:spotired/src/data/models/playlist/playlist.dart';
 import 'package:spotired/src/data/models/video/video_song.dart';
 import 'package:spotired/src/data/constants.dart';
+import 'package:spotired/src/data/services/youtube_suggestions_service.dart';
 import 'package:spotired/src/pages/data/enums/navigation_pages.enum.dart';
 import 'package:spotired/src/pages/data/providers/navitation_provider.dart';
 import 'package:spotired/src/shared/widgets/download_progress_icon.dart';
@@ -34,6 +35,12 @@ class _PlaylistPageState extends State<PlaylistPage> {
   double _playBtnButtonTop = 0;
   bool _showStickyPlayButton = false;
 
+  // SUGERENCIAS
+  List<VideoSong> _suggestions = <VideoSong>[];
+  bool _loadingSuggestions = false;
+  bool _suggestionsFailed = false;
+  bool _startingSuggestion = false;
+
 
   void _scrollListener() {
     final double scrollPosition = _scrollController.position.pixels;
@@ -51,6 +58,8 @@ class _PlaylistPageState extends State<PlaylistPage> {
     _playlist = playlistController.playlists[widget.playlistId]!;
     _scrollController.addListener(_scrollListener);
     super.initState();
+
+    _loadSuggestions();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_goBackKey.currentContext != null) {
@@ -107,7 +116,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
                       builder: (context, value, child) {
                         return ListView.builder(
                           controller: _scrollController,
-                          itemCount: _playlist.videos.length + 1,
+                          itemCount: _playlist.videos.length + 2,
                           itemBuilder: (context, index) {
                         
                             // HEADER
@@ -250,6 +259,11 @@ class _PlaylistPageState extends State<PlaylistPage> {
                             }
                 
                             // VIDEO-SONG
+                            // SUGERENCIAS
+                            if (index == _playlist.videos.length + 1) {
+                              return _suggestionsSection();
+                            }
+
                             final videoSong = videoController.getVideoByUrl(_playlist.videos[index - 1])!;
                 
                             // IMG
@@ -261,9 +275,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
                             return Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 20),
                               child: Padding(
-                                padding: EdgeInsets.only(
-                                  bottom: index == _playlist.videos.length ? 130 : 20.0,
-                                ),
+                                padding: const EdgeInsets.only(bottom: 20),
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
@@ -440,6 +452,315 @@ class _PlaylistPageState extends State<PlaylistPage> {
         ),
       ),
     );
+  }
+
+  Widget _suggestionsSection() {
+    const EdgeInsets outerPadding = EdgeInsets.only(left: 20, right: 20, top: 20, bottom: 130);
+
+    if (_playlist.videos.isEmpty) {
+      return const Padding(padding: outerPadding, child: SizedBox());
+    }
+
+    return Padding(
+      padding: outerPadding,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Expanded(
+                child: Text(
+                  'Puede que te guste',
+                  style: TextStyle(
+                    color: Constants.tertiaryColor,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+
+              GestureDetector(
+                onTap: _loadingSuggestions
+                  ? null
+                  : () => _loadSuggestions(force: true),
+                child: Container(
+                  color: Colors.transparent,
+                  padding: const EdgeInsets.only(left: 10, top: 5, bottom: 5),
+                  child: Icon(
+                    Icons.refresh_rounded,
+                    color: _loadingSuggestions
+                      ? const Color.fromRGBO(255, 255, 255, 0.3)
+                      : const Color.fromRGBO(255, 255, 255, 0.7),
+                    size: 24,
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 4),
+
+          const Text(
+            'A partir de las canciones de esta lista',
+            style: TextStyle(
+              color: Color.fromRGBO(255, 255, 255, 0.5),
+              fontSize: 13,
+            ),
+          ),
+
+          const SizedBox(height: 15),
+
+          _suggestionsBody(),
+        ],
+      ),
+    );
+  }
+
+  Widget _suggestionsBody() {
+    if (_loadingSuggestions && _suggestions.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 25),
+        child: Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(Constants.primaryColor),
+          ),
+        ),
+      );
+    }
+
+    if (_suggestionsFailed) {
+      return const Text(
+        'No se han podido cargar las sugerencias. Comprueba tu conexión e inténtalo de nuevo.',
+        style: TextStyle(
+          color: Color.fromRGBO(255, 255, 255, 0.7),
+          fontSize: 14,
+        ),
+      );
+    }
+
+    if (_suggestions.isEmpty) {
+      return const Text(
+        'No hay sugerencias por ahora.',
+        style: TextStyle(
+          color: Color.fromRGBO(255, 255, 255, 0.7),
+          fontSize: 14,
+        ),
+      );
+    }
+
+    return Column(
+      children: _suggestions.map(_suggestionRow).toList(),
+    );
+  }
+
+  Widget _suggestionRow(VideoSong videoSong) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          // LEFT
+          Expanded(
+            child: GestureDetector(
+              onTap: () => _playSuggestion(videoSong),
+              child: Container(
+                color: Colors.transparent,
+                child: Row(
+                  children: [
+                    // SONG IMG
+                    Container(
+                      width: 52,
+                      height: 52,
+                      decoration: const BoxDecoration(
+                        borderRadius: BorderRadius.all(Radius.circular(5)),
+                        color: Color.fromRGBO(35, 35, 35, 1),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(5),
+                        child: Stack(
+                          children: [
+                            Positioned(
+                              top: -8,
+                              bottom: -8,
+                              left: -19.4,
+                              child: Image.network(
+                                videoController.construyeVideoThumbnail(videoSong.thumbnail),
+                                errorBuilder: (context, error, stackTrace) {
+                                  return const SizedBox(
+                                    width: 52,
+                                    height: 52,
+                                    child: Icon(
+                                      Icons.music_note_rounded,
+                                      color: Color.fromRGBO(125, 125, 125, 1),
+                                      size: 24,
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(width: 13),
+
+                    // SONG TITLE
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 10),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              videoSong.title,
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: videoSong.url == videoController.currentVideo.value?.url
+                                  ? Constants.primaryColor
+                                  : Colors.white,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
+
+                            Text(
+                              videoSong.author,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: Color.fromRGBO(255, 255, 255, 0.7),
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // RIGHT
+          GestureDetector(
+            onTap: () => _addSuggestion(videoSong),
+            child: Container(
+              color: Colors.transparent,
+              padding: const EdgeInsets.only(left: 10, right: 5, top: 10, bottom: 10),
+              child: const Icon(
+                Icons.add_circle_outline_rounded,
+                color: Constants.primaryColor,
+                size: 26,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _loadSuggestions({ bool force = false }) async {
+    if (_loadingSuggestions) return;
+    if (_playlist.videos.isEmpty) return;
+
+    if (!force) {
+      final List<VideoSong>? cached = youtubeSuggestionsService.cachedFor(_playlist.id);
+      if (cached != null) {
+        setState(() {
+          _suggestions = cached;
+          _suggestionsFailed = false;
+        });
+        return;
+      }
+    }
+
+    setState(() {
+      _loadingSuggestions = true;
+      _suggestionsFailed = false;
+    });
+
+    try {
+      final List<VideoSong> result = await youtubeSuggestionsService.forPlaylist(
+        playlistId: _playlist.id,
+        videoIds: _playlist.videos,
+      );
+
+      if (!mounted) return;
+      setState(() => _suggestions = result);
+    } catch (ex) {
+      debugPrint('Sugerencias de la lista ${_playlist.id}: $ex');
+
+      if (!mounted) return;
+      setState(() => _suggestionsFailed = true);
+    } finally {
+      if (mounted) setState(() => _loadingSuggestions = false);
+    }
+  }
+
+  Future<void> _addSuggestion(VideoSong videoSong) async {
+    VideoSong videoSongToAdd = videoSong;
+    try {
+      videoSongToAdd = await youtubeSuggestionsService.complete(videoSong);
+    } catch (ex) {
+      debugPrint('No se pudieron completar los datos de ${videoSong.url}: $ex');
+    }
+
+    playlistController.addVideoToPlaylist(_playlist.id, videoSongToAdd);
+
+    if (!mounted) return;
+
+    setState(() {
+      _suggestions = _suggestions
+        .where((suggestion) => suggestion.url != videoSong.url)
+        .toList();
+    });
+  }
+
+  Future<void> _playSuggestion(VideoSong videoSong) async {
+    if (_startingSuggestion) return;
+    _startingSuggestion = true;
+
+    try {
+      VideoSong videoSongToPlay = videoSong;
+      try {
+        videoSongToPlay = await youtubeSuggestionsService.complete(videoSong);
+      } catch (ex) {
+        debugPrint('No se pudieron completar los datos de ${videoSong.url}: $ex');
+      }
+
+      await videoController.saveOneTimeVideoSong(videoSongToPlay);
+
+      final VideoSong? stored = videoController.getVideoByUrl(videoSongToPlay.url);
+      if (stored != null && videoSongToPlay.duration > 0 && stored.duration != videoSongToPlay.duration) {
+        stored.title = videoSongToPlay.title;
+        stored.author = videoSongToPlay.author;
+        stored.thumbnail = videoSongToPlay.thumbnail;
+        stored.duration = videoSongToPlay.duration;
+
+        await videoController.saveVideoSongs();
+      }
+
+      final int index = _suggestions.indexWhere(
+        (suggestion) => suggestion.url == videoSong.url,
+      );
+      final List<VideoSong> upNext = index >= 0
+        ? _suggestions.sublist(index + 1)
+        : <VideoSong>[];
+
+      videoController.startVideoAudio(
+        videoSongToPlay.url,
+        selected: true,
+        prepareNextVideo: true,
+        suggestedQueue: upNext,
+      );
+    } finally {
+      _startingSuggestion = false;
+    }
   }
 
   void _goBack() {

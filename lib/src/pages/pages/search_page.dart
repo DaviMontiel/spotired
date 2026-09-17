@@ -13,8 +13,6 @@ class SearchPage extends StatefulWidget {
 class _SearchPageState extends State<SearchPage> {
   @override
   Widget build(BuildContext context) {
-    return Constants.env == 'dev'
-      ? const NativeSearchPage()
-      : const YoutubeSearchPage();
+    return const NativeSearchPage();
   }
 }

@@ -1,13 +1,12 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:spotired/src/controllers/video_controller.dart';
 import 'package:spotired/src/data/models/video/video_song.dart';
 import 'package:spotired/src/data/constants.dart';
+import 'package:spotired/src/data/services/youtube_search_service.dart';
 import 'package:spotired/src/pages/data/providers/navitation_provider.dart';
-import 'package:http/http.dart' as http;
 import 'package:spotired/src/shared/widgets/modal_bottom_menu.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
@@ -28,7 +27,6 @@ class _NativeSearchSearchPageState extends State<NativeSearchSearchPage> {
   // SEARCH
   Timer? _debounce;
   final List<VideoSong> _videos = [];
-  String? _nextPageToken;
   bool _isLoading = false;
   bool _localSearch = false;
   final List<VideoSong> _localVideos = [];
@@ -41,7 +39,6 @@ class _NativeSearchSearchPageState extends State<NativeSearchSearchPage> {
   String? _textError;
 
   static const _debounceMs = 500;
-  static const _pageSize = 15;
 
   @override
   void initState() {
@@ -64,7 +61,7 @@ class _NativeSearchSearchPageState extends State<NativeSearchSearchPage> {
         thresholdReached &&
         !_localSearch &&
         !_isLoading &&
-        _nextPageToken != null &&
+        youtubeSearchService.hasMore &&
         _tfController.text.trim().isNotEmpty)
       {
         _search(_tfController.text.trim(), append: true);
@@ -371,19 +368,28 @@ class _NativeSearchSearchPageState extends State<NativeSearchSearchPage> {
     );
   }
 
-  /// Los resultados de YouTube traen la URL completa de la miniatura; las
-  /// canciones guardadas solo el fragmento, y normalmente ya la tienen
-  /// cacheada en disco.
   Widget _thumbnail(VideoSong videoSong) {
-    if (!_localSearch) return Image.network(videoSong.thumbnail);
+    if (_localSearch) {
+      final String? cachedImage = videoController.getVideoImageFromUrl(videoSong.url);
+      if (cachedImage != null) return Image.file(File.fromUri(Uri.file(cachedImage)));
 
-    final String? cachedImage = videoController.getVideoImageFromUrl(videoSong.url);
-    if (cachedImage == null) {
       videoController.loadImageFromVideoUrl(videoSong.url);
-      return Image.network(videoController.construyeVideoThumbnail(videoSong.thumbnail));
     }
 
-    return Image.file(File.fromUri(Uri.file(cachedImage)));
+    return Image.network(
+      videoController.construyeVideoThumbnail(videoSong.thumbnail),
+      errorBuilder: (context, error, stackTrace) {
+        return const SizedBox(
+          width: 52,
+          height: 52,
+          child: Icon(
+            Icons.music_note_rounded,
+            color: Color.fromRGBO(125, 125, 125, 1),
+            size: 24,
+          ),
+        );
+      },
+    );
   }
 
   void _changeScope(bool localSearch) {
@@ -440,9 +446,11 @@ class _NativeSearchSearchPageState extends State<NativeSearchSearchPage> {
       return;
     }
 
+    youtubeSearchService.reset();
+
     setState(() {
       _videos.clear();
-      _nextPageToken = null;
+      _textError = null;
     });
   }
 
@@ -450,37 +458,29 @@ class _NativeSearchSearchPageState extends State<NativeSearchSearchPage> {
     if (_isLoading) return;
     setState(() => _isLoading = true);
 
-    final key = Constants.youtubeApiKey;
-    final pageToken = append && _nextPageToken != null ? '&pageToken=$_nextPageToken' : '';
-    final url = 'https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=$_pageSize&q=${Uri.encodeQueryComponent(query)}&key=$key$pageToken';
-
     try {
-      final res = await http.get(Uri.parse(url));
-      if (res.statusCode == 200) {
-        final data = jsonDecode(res.body) as Map<String, dynamic>;
-        final newVideos = (data['items'] as List)
-            .map((i) => VideoSong.fromYoutubeSearchJson(i as Map<String, dynamic>))
-            .toList();
+      final List<VideoSong> newVideos = append
+        ? await youtubeSearchService.nextPage()
+        : await youtubeSearchService.search(query);
 
-        setState(() {
-          if (append) {
-            _videos.addAll(newVideos);
-          } else {
-            _videos
-              ..clear()
-              ..addAll(newVideos);
-          }
-          _nextPageToken = data['nextPageToken'] as String?;
-        });
-      } else {
-        setState(() {
-          _textError = 'YouTube API error: ${res.body}';
-        });
-
-        debugPrint('YouTube API error: ${res.body}');
-      }
+      if (!mounted) return;
+      setState(() {
+        if (append) {
+          _videos.addAll(newVideos);
+        } else {
+          _videos
+            ..clear()
+            ..addAll(newVideos);
+        }
+        _textError = null;
+      });
     } catch (e) {
-      debugPrint('Search error: $e');
+      debugPrint('Fallo buscando en YouTube: $e');
+
+      if (!mounted) return;
+      setState(() {
+        _textError = 'No se ha podido buscar en YouTube. Comprueba tu conexión e inténtalo de nuevo.';
+      });
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -504,17 +504,25 @@ class _NativeSearchSearchPageState extends State<NativeSearchSearchPage> {
       return;
     }
 
-    // GET YT VIDEO
-    final ytVideo = await YoutubeExplode().videos.get(video.url);
+    VideoSong videoSong = video;
+    if (videoSong.duration <= 0) {
+      final YoutubeExplode yt = YoutubeExplode();
+      try {
+        final ytVideo = await yt.videos.get(video.url);
 
-    // CREATE VIDEO-SONG
-    VideoSong videoSong = VideoSong(
-      url: video.url,
-      title: ytVideo.title,
-      author: ytVideo.author,
-      thumbnail: videoController.getVideoThumbnailFromYTUrl(ytVideo.url).split('vi/')[1],
-      duration: ytVideo.duration!.inSeconds,
-    );
+        videoSong = VideoSong(
+          url: video.url,
+          title: ytVideo.title,
+          author: ytVideo.author,
+          thumbnail: videoController.getVideoThumbnailFromYTUrl(ytVideo.url).split('vi/')[1],
+          duration: ytVideo.duration?.inSeconds ?? 0,
+        );
+      } catch (ex) {
+        debugPrint('No se pudieron completar los datos de ${video.url}: $ex');
+      } finally {
+        yt.close();
+      }
+    }
 
     // SAVE
     await videoController.saveOneTimeVideoSong(videoSong);

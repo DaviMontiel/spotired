@@ -14,6 +14,7 @@ import 'package:spotired/src/data/models/video/enums/video_song_status.dart';
 import 'package:spotired/src/data/models/video/video_song.dart';
 import 'package:spotired/src/data/services/data_service.dart';
 import 'package:spotired/src/data/services/youtube_audio_service.dart';
+import 'package:spotired/src/data/services/youtube_suggestions_service.dart';
 import 'package:spotired/src/data/models/playlist/playlist.dart' as MiPlayList;
 import 'package:http/http.dart' as http;
 
@@ -29,6 +30,11 @@ class VideoController with ChangeNotifier {
   final Map<String, double?> downloadVideosProgress = {};
   ConcatenatingAudioSource playlistSource = ConcatenatingAudioSource(children: []);
   List<String> _pendingVideos = [];
+
+  /// Continuacion para cuando NO se reproduce desde una playlist (sugerencias).
+  /// Solo vive en memoria: estas canciones no entran en la biblioteca hasta
+  /// que les toca sonar.
+  List<VideoSong> _suggestedQueue = <VideoSong>[];
   final ValueNotifier<VideoSong?> currentVideo = ValueNotifier<VideoSong?>(null);
   final ValueNotifier<Color> currentVideoColor = ValueNotifier<Color>(Colors.black);
   final ValueNotifier<int> currentPosition = ValueNotifier<int>(0);
@@ -182,7 +188,8 @@ class VideoController with ChangeNotifier {
       bool selected = false,
       bool play = true,
       int? startSecond,
-      bool prepareNextVideo = true
+      bool prepareNextVideo = true,
+      List<VideoSong>? suggestedQueue,
     }
   ) async {
     // CHECK IF WE ARE STARTING A DIFFERENT VIDEO
@@ -201,6 +208,12 @@ class VideoController with ChangeNotifier {
     _normalSecuence = selected;
     _error = false;
     _pendingVideos = [];
+
+    _suggestedQueue = suggestedQueue == null
+      ? <VideoSong>[]
+      : List<VideoSong>.from(suggestedQueue);
+    if (_suggestedQueue.isNotEmpty) _completeNextSuggested();
+
     dataService.clear(SharePreferenceValues.pendingVideos);
     dataService.clear(SharePreferenceValues.pendingVideosCursor);
 
@@ -472,7 +485,12 @@ class VideoController with ChangeNotifier {
   void _prepareNextSecuentialVideo({ String? excludeUrl }) {
     // GET THE CURRENT PLAYLIST
     MiPlayList.Playlist? playlist = playlistController.playlists[playlistController.currentPlaylistPlayingId];
-    if (playlist == null) return;
+
+    // SUGGESTED-VIDEO
+    if (playlist == null) {
+      _prepareNextSuggestedVideo();
+      return;
+    }
 
     // GET THE CURRENT VIDEO URL
     String? currentVideoUrl = currentVideo.value?.url;
@@ -494,6 +512,39 @@ class VideoController with ChangeNotifier {
 
     // ADD NEXT VIDEO
     _addVideoSongToPlaylist(getVideoByUrl(nextVideoUrl)!);
+  }
+
+  void _prepareNextSuggestedVideo() {
+    if (_suggestedQueue.isEmpty) return;
+
+    final VideoSong nextVideoSong = _suggestedQueue.removeAt(0);
+
+    addVideoSong(nextVideoSong);
+
+    final VideoSong? storedVideoSong = getVideoByUrl(nextVideoSong.url);
+    if (storedVideoSong == null) return;
+
+    _addVideoSongToPlaylist(storedVideoSong);
+
+    _completeNextSuggested();
+  }
+
+  void _completeNextSuggested() async {
+    if (_suggestedQueue.isEmpty) return;
+
+    final VideoSong nextVideoSong = _suggestedQueue.first;
+    if (nextVideoSong.duration > 0) return;
+
+    try {
+      final VideoSong completed = await youtubeSuggestionsService.complete(nextVideoSong);
+
+      nextVideoSong.title = completed.title;
+      nextVideoSong.author = completed.author;
+      nextVideoSong.thumbnail = completed.thumbnail;
+      nextVideoSong.duration = completed.duration;
+    } catch (ex) {
+      debugPrint('No se pudo completar la sugerencia ${nextVideoSong.url}: $ex');
+    }
   }
 
   _prepareNextRandomVideo() {
