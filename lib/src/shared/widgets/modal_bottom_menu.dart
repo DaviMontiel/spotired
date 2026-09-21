@@ -240,13 +240,12 @@ class ModalBottomMenu {
       {
         'icon': Icons.add_circle_outline,
         'text': 'Añadir a la lista',
-        'event': () => _addToPlaylists(context, videoSong.url),
+        'event': () => _addToPlaylists(context, videoSong),
       },
-      if (playlistid != null)
       {
         'icon': Icons.format_list_bulleted_add,
         'text': 'Agregar a la cola',
-        'event': () => addVideoToQueue(context, videoSong.url),
+        'event': () => addVideoToQueue(context, videoSong),
       },
       if (playlistid != null)
       {
@@ -309,7 +308,17 @@ class ModalBottomMenu {
                                       left: -15,
                                       right: -15,
                                       child: cachedImage == null
-                                        ? Image.network(videoSong.thumbnail, fit: BoxFit.scaleDown)
+                                        ? Image.network(
+                                            videoController.construyeVideoThumbnail(videoSong.thumbnail),
+                                            fit: BoxFit.scaleDown,
+                                            errorBuilder: (context, error, stackTrace) {
+                                              return const Icon(
+                                                Icons.music_note_rounded,
+                                                color: Color.fromRGBO(125, 125, 125, 1),
+                                                size: 30,
+                                              );
+                                            },
+                                          )
                                         : Image.file(File.fromUri(Uri.file(cachedImage)), fit: BoxFit.scaleDown),
                                     )
                                   ],
@@ -487,15 +496,21 @@ class ModalBottomMenu {
     Navigator.pop(context);
   }
 
-  addVideoToQueue(BuildContext context, String url) {
-    videoController.addVideoToQueue(url);
+  addVideoToQueue(BuildContext context, VideoSong videoSong) {
+    if (videoController.getVideoByUrl(videoSong.url) == null) {
+      videoController.addVideoSong(videoSong);
+    }
+
+    videoController.addVideoToQueue(videoSong.url);
     Navigator.pop(context);
   }
 
-  _addToPlaylists(BuildContext context, String url) {
+  _addToPlaylists(BuildContext context, VideoSong videoSong) {
     Navigator.pushReplacement(
       context,
-      CupertinoPageRoute(builder: (context) => AddVideoPage(videoSongUrl: url)),
+      CupertinoPageRoute(
+        builder: (context) => AddVideoPage(videoSong: videoSong),
+      ),
     );
   }
 

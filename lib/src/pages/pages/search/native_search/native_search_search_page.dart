@@ -504,25 +504,7 @@ class _NativeSearchSearchPageState extends State<NativeSearchSearchPage> {
       return;
     }
 
-    VideoSong videoSong = video;
-    if (videoSong.duration <= 0) {
-      final YoutubeExplode yt = YoutubeExplode();
-      try {
-        final ytVideo = await yt.videos.get(video.url);
-
-        videoSong = VideoSong(
-          url: video.url,
-          title: ytVideo.title,
-          author: ytVideo.author,
-          thumbnail: videoController.getVideoThumbnailFromYTUrl(ytVideo.url).split('vi/')[1],
-          duration: ytVideo.duration?.inSeconds ?? 0,
-        );
-      } catch (ex) {
-        debugPrint('No se pudieron completar los datos de ${video.url}: $ex');
-      } finally {
-        yt.close();
-      }
-    }
+    final VideoSong videoSong = await _completeIfNeeded(video);
 
     // SAVE
     await videoController.saveOneTimeVideoSong(videoSong);
@@ -536,9 +518,37 @@ class _NativeSearchSearchPageState extends State<NativeSearchSearchPage> {
     _isLoadingSong = false;
   }
 
-  void _onClickVideoSongMenu(VideoSong videoSong) {
+  Future<VideoSong> _completeIfNeeded(VideoSong video) async {
+    if (video.duration > 0) return video;
+
+    final YoutubeExplode yt = YoutubeExplode();
+    try {
+      final ytVideo = await yt.videos.get(video.url);
+
+      return VideoSong(
+        url: video.url,
+        title: ytVideo.title,
+        author: ytVideo.author,
+        thumbnail: videoController.getVideoThumbnailFromYTUrl(ytVideo.url).split('vi/')[1],
+        duration: ytVideo.duration?.inSeconds ?? 0,
+      );
+    } catch (ex) {
+      debugPrint('No se pudieron completar los datos de ${video.url}: $ex');
+      return video;
+    } finally {
+      yt.close();
+    }
+  }
+
+  Future<void> _onClickVideoSongMenu(VideoSong videoSong) async {
     _focusNode.unfocus();
 
-    ModalBottomMenu().videoSongMenu(context, null, videoSong);
+    final VideoSong completeVideoSong = _localSearch
+      ? videoSong
+      : await _completeIfNeeded(videoSong);
+
+    if (!mounted) return;
+
+    ModalBottomMenu().videoSongMenu(context, null, completeVideoSong);
   }
 }

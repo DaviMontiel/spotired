@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:spotired/src/controllers/video_controller.dart';
 import 'package:spotired/src/data/models/video/enums/video_song_status.dart';
 import 'package:spotired/src/data/models/video/video_song.dart';
+import 'package:spotired/src/shared/widgets/modal_bottom_menu.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class PlayerPage extends StatefulWidget {
@@ -76,7 +77,7 @@ class _PlayerPageState extends State<PlayerPage> {
                     padding: const EdgeInsets.symmetric(horizontal: 24),
                     child: Column(
                       children: [
-                        _header(),
+                        _header(videoSong),
 
                         Expanded(
                           child: Center(
@@ -109,7 +110,7 @@ class _PlayerPageState extends State<PlayerPage> {
     );
   }
 
-  Widget _header() {
+  Widget _header(VideoSong videoSong) {
     return SizedBox(
       height: 56,
       child: Row(
@@ -140,11 +141,27 @@ class _PlayerPageState extends State<PlayerPage> {
             ),
           ),
 
-          // Equilibra el ancho del icono para que el titulo quede centrado.
-          const SizedBox(width: 47),
+          // Mismo ancho que el icono de la izquierda (32 + 15) para que el
+          // titulo siga centrado.
+          GestureDetector(
+            onTap: () => _openVideoSongMenu(videoSong),
+            child: Container(
+              color: Colors.transparent,
+              padding: const EdgeInsets.only(left: 15, top: 10, bottom: 10),
+              child: const Icon(
+                Icons.more_horiz_sharp,
+                color: Colors.white,
+                size: 32,
+              ),
+            ),
+          ),
         ],
       ),
     );
+  }
+
+  void _openVideoSongMenu(VideoSong videoSong) {
+    ModalBottomMenu().videoSongMenu(context, null, videoSong);
   }
 
   Widget _artwork(VideoSong videoSong) {

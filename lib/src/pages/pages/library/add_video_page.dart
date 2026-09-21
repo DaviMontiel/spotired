@@ -10,16 +10,20 @@ import 'package:youtube_explode_dart/youtube_explode_dart.dart' as YT;
 class AddVideoPage extends StatefulWidget {
 
   final YT.Video? ytVideo;
+  final VideoSong? videoSong;
 
   late final String url;
 
   AddVideoPage({
     super.key,
     this.ytVideo,
+    this.videoSong,
     String? videoSongUrl,
   }) {
     if (ytVideo != null) {
       url = ytVideo!.url.split('v=')[1];
+    } else if (videoSong != null) {
+      url = videoSong!.url;
     } else {
       url = videoSongUrl!;
     }
@@ -333,18 +337,23 @@ class _AddVideoPageState extends State<AddVideoPage> {
   }
 
   void _saveVideoToPlaylist(int playlistId) async {
-    VideoSong video;
-    
+    VideoSong? video;
+
     if (widget.ytVideo != null) {
       video = VideoSong(
         url: widget.ytVideo!.url.split('v=')[1],
         title: widget.ytVideo!.title,
         author: widget.ytVideo!.author,
         thumbnail: videoController.getVideoThumbnailFromYTUrl(widget.ytVideo!.url).split('vi/')[1],
-        duration: widget.ytVideo!.duration!.inSeconds,
+        duration: widget.ytVideo!.duration?.inSeconds ?? 0,
       );
     } else {
-      video = videoController.getVideoByUrl(widget.url)!;
+      video = videoController.getVideoByUrl(widget.url) ?? widget.videoSong;
+    }
+
+    if (video == null) {
+      debugPrint('No hay datos de la canción ${widget.url}: no se añade a la lista');
+      return;
     }
 
     // ADD SONG
