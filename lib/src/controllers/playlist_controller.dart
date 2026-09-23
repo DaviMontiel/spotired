@@ -6,6 +6,7 @@ import 'package:spotired/src/data/models/playlist/playlist.dart';
 import 'package:spotired/src/data/models/shared_preferences/enums/share_preference_values.enum.dart';
 import 'package:spotired/src/data/models/video/video_song.dart';
 import 'package:spotired/src/data/services/data_service.dart';
+import 'package:spotired/src/data/services/youtube_playlist_service.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart' as YT;
 
 final playlistController = PlaylistController();
@@ -124,7 +125,8 @@ class PlaylistController with ChangeNotifier {
     savePlaylists();
   }
 
-  void addVideoToPlaylist(int playlistid, VideoSong video) {
+  /// [bulk] para importaciones largas: no guarda ni notifica en cada cancion.
+  void addVideoToPlaylist(int playlistid, VideoSong video, { bool bulk = false }) {
     // GET PLAYLIST
     final playlist = _playlists[playlistid]!;
 
@@ -134,7 +136,7 @@ class PlaylistController with ChangeNotifier {
     // CREATE VIDEO-SONG
     if (existingVideo == null) {
       existingVideo = video;
-      videoController.addVideoSong(video);
+      videoController.addVideoSong(video, bulk: bulk);
     }
 
     // ADD
@@ -147,6 +149,8 @@ class PlaylistController with ChangeNotifier {
         videoController.downloadVideoSong(video);
       }
     }
+
+    if (bulk) return;
 
     notifyListeners();
 
@@ -183,36 +187,95 @@ class PlaylistController with ChangeNotifier {
     }
   }
 
-  Future<void> fetchYouTubePlaylistWithoutAPIKey(String playlistYtId) async {
+  static String? extractYoutubePlaylistId(String input) {
+    final String text = input.trim();
+    if (text.isEmpty) return null;
+
+    // Id pelado, sin url alrededor.
+    if (!text.contains('/') && !text.contains('?') && !text.contains('&')) {
+      return text;
+    }
+
+    try {
+      final String? listParam = Uri.parse(text).queryParameters['list'];
+      if (listParam != null && listParam.isNotEmpty) return listParam;
+    } catch (ex) {
+      debugPrint('Importar lista: url ilegible «$text»: $ex');
+    }
+
+    return null;
+  }
+
+  /// Importa una lista publica de YouTube.
+  Future<int?> fetchYouTubePlaylistWithoutAPIKey(String input) async {
+    final String? playlistYtId = extractYoutubePlaylistId(input);
+    if (playlistYtId == null) {
+      debugPrint('Importar lista: no se ha encontrado el id en «$input»');
+      return null;
+    }
+
     final yt = YT.YoutubeExplode();
-    
+
     try {
       final playlist = await yt.playlists.get(playlistYtId);
-      final videos = yt.playlists.getVideos(playlistYtId);
 
-      List<VideoSong> videoList = await videos.map((video) {
-        // print('--- AUTHOR: ${video.author}');
-        // print('--- URL: ${video.url.split('v=')[1]}');
-        // print('--- THUMBNAIL: ${videoController.getVideoThumbnailFromYTUrl(video.url).split('vi/')[1]}');
-        // print('--- DURATION: ${video.duration!.inSeconds}');
-        // print('-------------------');
-        return VideoSong(
-          title: video.title,
-          author: video.author,
-          url: video.url.split('v=')[1],
-          thumbnail: videoController.getVideoThumbnailFromYTUrl(video.url).split('vi/')[1],
-          duration: video.duration!.inSeconds,
-        );
-      }).toList();
+      final List<VideoSong> videoList = <VideoSong>[];
+      int received = 0;
+      int skipped = 0;
 
-      final playlistId = await addPlaylist('YT: ${playlist.title}');
+      await for (final YT.Video video in yt.playlists.getVideos(playlistYtId)) {
+        received++;
 
-      // ADD SONGs
-      for (var videoSong in videoList) {
-        addVideoToPlaylist(playlistId!, videoSong);
+        try {
+          final String videoId = video.id.value;
+          if (videoId.isEmpty) {
+            skipped++;
+            continue;
+          }
+
+          videoList.add(VideoSong(
+            title: video.title,
+            author: video.author,
+            url: videoId,
+            thumbnail: '$videoId/0.jpg',
+            duration: video.duration?.inSeconds ?? 0,
+          ));
+        } catch (ex) {
+          skipped++;
+          debugPrint('Importar lista: se salta un vídeo: $ex');
+        }
       }
-    } catch (e) {
-      print('Error al obtener la playlist: $e');
+
+      debugPrint(
+        'Importar «${playlist.title}» ($playlistYtId): '
+        '$received recibidos, ${videoList.length} importados, $skipped descartados',
+      );
+
+      if (videoList.isEmpty) {
+        debugPrint('Importar lista: la librería no devolvió vídeos, se prueba con la API oficial');
+
+        videoList.addAll(await youtubePlaylistService.fetchVideos(playlistYtId));
+
+        debugPrint('Importar lista: la API devolvió ${videoList.length} canciones');
+      }
+
+      if (videoList.isEmpty) return null;
+
+      final int? playlistId = await addPlaylist('YT: ${playlist.title}');
+      if (playlistId == null) return null;
+
+      for (final VideoSong videoSong in videoList) {
+        addVideoToPlaylist(playlistId, videoSong, bulk: true);
+      }
+
+      notifyListeners();
+      await videoController.saveVideoSongs();
+      await savePlaylists();
+
+      return videoList.length;
+    } catch (ex) {
+      debugPrint('Importar lista: error al obtener la lista: $ex');
+      return null;
     } finally {
       yt.close();
     }

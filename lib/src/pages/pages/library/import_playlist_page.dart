@@ -352,11 +352,19 @@ class _ImportPlaylistPageState extends State<ImportPlaylistPage> {
     // GET PLAYLIST
     final yt = YT.YoutubeExplode();
     try {
-      final playlistYtId = Uri.parse(_tfController.text).queryParameters['list'];
-      final playlist = await yt.playlists.get(playlistYtId);
-      if (playlist.author.isNotEmpty) this.playlist = playlist;
+      final playlistYtId = PlaylistController.extractYoutubePlaylistId(_tfController.text);
+
+      if (playlistYtId != null) {
+        final playlist = await yt.playlists.get(playlistYtId);
+        if (playlist.author.isNotEmpty) this.playlist = playlist;
+      }
+    } catch (ex) {
+      debugPrint('Vista previa de la lista: $ex');
+    } finally {
       yt.close();
-    } catch(ex) {}
+    }
+
+    if (!mounted) return;
 
     _isInProcess = false;
     setState(() {});
@@ -369,7 +377,25 @@ class _ImportPlaylistPageState extends State<ImportPlaylistPage> {
     _isInProcess = true;
     setState(() {});
 
-    await playlistController.fetchYouTubePlaylistWithoutAPIKey(_tfController.text);
+    final int? imported = await playlistController
+      .fetchYouTubePlaylistWithoutAPIKey(_tfController.text);
+
+    if (!mounted) return;
+
+    _isInProcess = false;
+    setState(() {});
+
+    if (imported == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'No se han podido leer las canciones de esa lista. '
+            'Comprueba que es pública y que el enlace es correcto.',
+          ),
+        ),
+      );
+      return;
+    }
 
     _goBack();
   }

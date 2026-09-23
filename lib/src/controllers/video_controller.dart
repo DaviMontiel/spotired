@@ -94,10 +94,13 @@ class VideoController with ChangeNotifier {
     return storageImageFile;
   }
 
-  void addVideoSong(VideoSong video) {
+  void addVideoSong(VideoSong video, { bool bulk = false }) {
     if (_videos.containsKey(video.url)) return;
 
     _videos[video.url] = video;
+
+    if (bulk) return;
+
     loadImageFromVideoUrl(video.url);
     notifyListeners();
 

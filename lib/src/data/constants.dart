@@ -11,4 +11,7 @@ class Constants {
   static const secondaryColor = Colors.red;
   static const tertiaryColor = Colors.white;
 
+  // YOUTUBE
+  static String? youtubeApiKey = dotenv.env['YOUTUBE_API_KEY'];
+
 }
